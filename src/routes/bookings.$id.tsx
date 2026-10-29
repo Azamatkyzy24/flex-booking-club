@@ -1,0 +1,68 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { QRCodeSVG } from "qrcode.react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Loading, Page, Row, StatusBadge, fmtDate } from "@/components/gym/format";
+import { getGym, setGym, useGym } from "@/lib/store";
+import { cancelBooking, canCancel, money, statusOf, CANCEL_HOURS } from "@/lib/gym";
+
+export const Route = createFileRoute("/bookings/$id")({
+  head: () => ({ meta: [
+    { title: "Booking Details — GymFlow" },
+    { name: "description", content: "Your booking QR code and payment details for reception." },
+    { property: "og:title", content: "Booking Details — GymFlow" },
+    { property: "og:description", content: "Show this QR code at GymFlow reception." },
+  ] }),
+  component: Detail,
+});
+
+function Detail() {
+  const { id } = Route.useParams();
+  const g = useGym();
+  if (!g) return <Loading />;
+  const b = g.bookings.find((x) => x.id === id);
+  const s = b && g.sessions.find((x) => x.id === b.sessionId);
+  if (!b || !s) return <Page title="Booking not found"><Link to="/bookings" className="text-primary">Back to bookings</Link></Page>;
+  const st = statusOf(b, s);
+
+  const cancel = () => {
+    const next = cancelBooking(getGym(), b.id);
+    if (!next) return toast.error("This booking can no longer be cancelled.");
+    setGym(next);
+    toast.success(`Booking cancelled. ${money(b.deposit)} refunded to your wallet.`);
+  };
+
+  return (
+    <Page title="Booking details">
+      <div className="grid gap-6 md:grid-cols-[auto_1fr]">
+        <div className="flex flex-col items-center rounded-2xl border border-border bg-card p-6">
+          <div className={`rounded-xl bg-foreground p-4 ${st !== "upcoming" ? "opacity-40" : ""}`}>
+            <QRCodeSVG value={b.code} size={200} />
+          </div>
+          <p className="mt-3 font-mono text-sm font-bold">{b.id}</p>
+          <p className="text-xs text-muted-foreground">Show this at reception</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-2xl font-bold">{s.name}</h2>
+            <StatusBadge status={st} />
+          </div>
+          <Row k="Booking ID" v={b.id} />
+          <Row k="Type" v={s.type} />
+          <Row k="Trainer" v={s.trainer} />
+          <Row k="Date & time" v={`${fmtDate(s.start)} · ${s.duration} min`} />
+          <Row k="Total price" v={money(b.total)} />
+          <Row k="Deposit paid" v={money(b.deposit)} />
+          <Row k="Remaining at reception" v={money(b.total - b.deposit)} strong />
+          {st === "upcoming" && (
+            canCancel(b, s) ? (
+              <Button variant="destructive" className="mt-4" onClick={cancel}>Cancel booking</Button>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">Cancellation deadline ({CANCEL_HOURS}h before start) has passed.</p>
+            )
+          )}
+        </div>
+      </div>
+    </Page>
+  );
+}
