@@ -27,7 +27,7 @@ function Detail() {
 
   const cancel = () => {
     const next = cancelBooking(getGym(), b.id);
-    if (!next) return toast.error("This booking can no longer be cancelled.");
+    if (!next) { toast.error("This booking can no longer be cancelled."); return; }
     setGym(next);
     toast.success(`Booking cancelled. ${money(b.deposit)} refunded to your wallet.`);
   };

@@ -90,7 +90,7 @@ export function makeSeed(now = Date.now()): GymState {
     S("p1", "Spin Cycle", "Group Class", "Ava Patel", day(-3, 19), 45, 16, 25, 24, 22),
     S("p2", "Power Yoga", "Group Class", "Liam Chen", day(-6, 18), 60, 18, 25, 20, 18),
   ];
-  sessions[3].booked++; // seeded upcoming booking on s4
+  sessions[3]!.booked++; // seeded upcoming booking on s4
   const mk = (id: string, sid: string, cancelled: boolean, ago: number): Booking => {
     const s = sessions.find((x) => x.id === sid)!;
     return { id, sessionId: sid, cancelled, total: s.price, deposit: depositOf(s), createdAt: day(-ago, 12), code: `GYMFLOW:${id}:${sid}` };
