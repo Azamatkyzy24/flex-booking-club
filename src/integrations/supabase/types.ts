@@ -284,6 +284,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_session: {
+        Args: { p_member_id: number; p_workout_id: number }
+        Returns: number
+      }
       book_workout: {
         Args: { p_member_id: number; p_workout_id: number }
         Returns: number

@@ -90,6 +90,10 @@ async function rpcError<T>(p: PromiseLike<{ data: T; error: { message: string } 
 
 export const bookWorkout = (workoutId: string) =>
   rpcError(supabase.rpc("book_workout", { p_member_id: memberId!, p_workout_id: Number(workoutId) }));
+/** Atomic booking: locks the workout row in the database so two simultaneous
+ *  bookings cannot both take the last spot. Raises SESSION_FULL / INSUFFICIENT_BALANCE. */
+export const bookSession = (workoutId: string) =>
+  rpcError(supabase.rpc("book_session", { p_workout_id: Number(workoutId), p_member_id: memberId! }));
 export const cancelBookingDb = (bookingId: string) =>
   rpcError(supabase.rpc("cancel_booking", { p_booking_id: Number(bookingId) }));
 export const topUpWallet = (amount: number) =>
