@@ -50,6 +50,13 @@
       "when": 1793907286500,
       "tag": "0006_book_session_atomic",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793914177518,
+      "tag": "0007_seed_test_workouts_and_low_balance_member",
+      "breakpoints": true
     }
   ]
 }
