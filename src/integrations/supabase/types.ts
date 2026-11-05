@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          log_id: number
+          member_id: number | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          log_id?: never
+          member_id?: number | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          log_id?: never
+          member_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["member_id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           booked_at: string
@@ -100,6 +132,42 @@ export type Database = {
           trainer_id?: never
         }
         Relationships: []
+      }
+      waitlist: {
+        Row: {
+          created_at: string
+          member_id: number
+          waitlist_id: number
+          workout_id: number
+        }
+        Insert: {
+          created_at?: string
+          member_id: number
+          waitlist_id?: never
+          workout_id: number
+        }
+        Update: {
+          created_at?: string
+          member_id?: number
+          waitlist_id?: never
+          workout_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waitlist_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "waitlist_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["workout_id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
@@ -197,6 +265,10 @@ export type Database = {
         Returns: number
       }
       cancel_booking: { Args: { p_booking_id: number }; Returns: undefined }
+      join_waitlist: {
+        Args: { p_member_id: number; p_workout_id: number }
+        Returns: number
+      }
       top_up_wallet: {
         Args: { p_amount: number; p_member_id: number }
         Returns: undefined
