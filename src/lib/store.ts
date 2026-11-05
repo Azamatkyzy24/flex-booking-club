@@ -2,29 +2,24 @@ import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Booking, GymState, Session, Tx } from "./gym";
 
-/** Prototype has no sign-in yet: the app acts as the seeded demo member. */
-export const DEMO_MEMBERS = [
-  { email: "alex.morgan@example.com", name: "Alex" },
-  { email: "sam.lee@example.com", name: "Sam" },
-] as const;
-const DEMO_KEY = "gymflow-demo-member";
-let demoEmail: string = DEMO_MEMBERS[0].email;
-export const getDemoEmail = () => demoEmail;
-/** Demo tool: switch which seeded member the app acts as. */
-export async function setDemoEmail(email: string) {
-  demoEmail = email;
-  try { localStorage.setItem(DEMO_KEY, email); } catch { /* ignore */ }
-  await refreshGym();
-}
-
 let state: GymState | null = null;
 let memberId: number | null = null;
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
+export function clearGym() {
+  state = null;
+  memberId = null;
+  loading = null;
+  emit();
+}
+
 export async function refreshGym() {
-  const m = await supabase.from("members").select("*").eq("email", demoEmail).single();
+  const { data: sess } = await supabase.auth.getSession();
+  const uid = sess.session?.user.id;
+  if (!uid) { clearGym(); return; }
+  const m = await supabase.from("members").select("*").eq("user_id", uid).single();
   if (m.error) throw m.error;
   memberId = m.data.member_id;
   const [w, b, t, q] = await Promise.all([
@@ -59,8 +54,29 @@ export async function refreshGym() {
 }
 
 function ensureLoaded() {
-  try { const saved = localStorage.getItem(DEMO_KEY); if (saved && DEMO_MEMBERS.some((m) => m.email === saved)) demoEmail = saved; } catch { /* ignore */ }
   if (!loading) loading = refreshGym().catch((e) => { console.error(e); loading = null; });
+}
+
+export async function signIn(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+  await refreshGym();
+}
+
+export async function register(fullName: string, email: string, password: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName }, emailRedirectTo: window.location.origin },
+  });
+  if (error) throw new Error(error.message);
+  if (!data.session) throw new Error("Account created. Please check your email to confirm it, then log in.");
+  await refreshGym();
+}
+
+export async function signOut() {
+  await supabase.auth.signOut();
+  clearGym();
 }
 
 async function rpcError<T>(p: PromiseLike<{ data: T; error: { message: string } | null }>) {
@@ -80,7 +96,7 @@ export const topUpWallet = (amount: number) =>
 export const joinWaitlist = (workoutId: string) =>
   rpcError(supabase.rpc("join_waitlist", { p_member_id: memberId!, p_workout_id: Number(workoutId) }));
 
-/** Returns null during SSR and until the database has loaded. */
+/** Returns null during SSR, while loading, and when signed out. */
 export function useGym(): GymState | null {
   return useSyncExternalStore(
     (l) => { listeners.add(l); ensureLoaded(); return () => listeners.delete(l); },
