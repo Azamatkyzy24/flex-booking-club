@@ -1,6 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Loading, Page, Row } from "@/components/gym/format";
-import { useGym } from "@/lib/store";
+import { signOut, useGym } from "@/lib/store";
 import { money } from "@/lib/gym";
 
 export const Route = createFileRoute("/profile")({
@@ -15,7 +18,21 @@ export const Route = createFileRoute("/profile")({
 
 function Profile() {
   const g = useGym();
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
   if (!g) return <Loading />;
+
+  const logout = async () => {
+    setBusy(true);
+    try {
+      await signOut();
+      navigate({ to: "/login", replace: true });
+    } catch {
+      toast.error("Could not log out. Please try again.");
+      setBusy(false);
+    }
+  };
+
   return (
     <Page title="Profile">
       <div className="max-w-md rounded-2xl border border-border bg-card p-6">
@@ -27,6 +44,10 @@ function Profile() {
         <Row k="Membership" v="Flex (pay per session)" />
         <Row k="Wallet" v={money(g.balance)} />
         <Row k="Bookings" v={String(g.bookings.length)} />
+        <Button variant="outline" onClick={logout} disabled={busy}
+          className="mt-6 w-full border-destructive/40 text-destructive hover:bg-destructive/10">
+          {busy ? "Logging out…" : "Log out"}
+        </Button>
       </div>
     </Page>
   );

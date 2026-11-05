@@ -6,12 +6,16 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useNavigate,
+  useRouterState,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Nav } from "@/components/gym/Nav";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { clearGym, refreshGym } from "@/lib/store";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -116,13 +120,37 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+const AUTH_PAGES = ["/login", "/register"];
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [authed, setAuthed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setAuthed(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") { setAuthed(true); void refreshGym(); }
+      else if (event === "SIGNED_OUT") { setAuthed(false); clearGym(); }
+      else if (event === "USER_UPDATED") { void refreshGym(); }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (authed === null) return;
+    const isAuthPage = AUTH_PAGES.includes(pathname);
+    if (!authed && !isAuthPage) void navigate({ to: "/login", replace: true });
+    else if (authed && isAuthPage) void navigate({ to: "/", replace: true });
+  }, [authed, pathname, navigate]);
+
+  const showNav = authed === true && !AUTH_PAGES.includes(pathname);
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Nav />
+      {showNav && <Nav />}
       <Outlet />
       <Toaster />
     </QueryClientProvider>

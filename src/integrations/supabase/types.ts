@@ -94,6 +94,7 @@ export type Database = {
           full_name: string
           member_id: number
           membership_type: string | null
+          user_id: string | null
           wallet_balance: number
         }
         Insert: {
@@ -101,6 +102,7 @@ export type Database = {
           full_name: string
           member_id?: never
           membership_type?: string | null
+          user_id?: string | null
           wallet_balance?: number
         }
         Update: {
@@ -108,6 +110,7 @@ export type Database = {
           full_name?: string
           member_id?: never
           membership_type?: string | null
+          user_id?: string | null
           wallet_balance?: number
         }
         Relationships: []
@@ -118,18 +121,39 @@ export type Database = {
           full_name: string
           specialty: string | null
           trainer_id: number
+          user_id: string | null
         }
         Insert: {
           email?: string | null
           full_name: string
           specialty?: string | null
           trainer_id?: never
+          user_id?: string | null
         }
         Update: {
           email?: string | null
           full_name?: string
           specialty?: string | null
           trainer_id?: never
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: number
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: never
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: never
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -265,6 +289,14 @@ export type Database = {
         Returns: number
       }
       cancel_booking: { Args: { p_booking_id: number }; Returns: undefined }
+      current_member_id: { Args: never; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       join_waitlist: {
         Args: { p_member_id: number; p_workout_id: number }
         Returns: number
@@ -273,9 +305,16 @@ export type Database = {
         Args: { p_amount: number; p_member_id: number }
         Returns: undefined
       }
+      workout_booked_counts: {
+        Args: never
+        Returns: {
+          booked: number
+          workout_id: number
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "member" | "trainer" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -402,6 +441,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["member", "trainer", "admin"],
+    },
   },
 } as const
