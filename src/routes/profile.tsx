@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Loading, Page, Row } from "@/components/gym/format";
-import { resetGym, useGym } from "@/lib/store";
+import { useGym } from "@/lib/store";
 import { money } from "@/lib/gym";
 
 export const Route = createFileRoute("/profile")({
@@ -29,9 +27,6 @@ function Profile() {
         <Row k="Membership" v="Flex (pay per session)" />
         <Row k="Wallet" v={money(g.balance)} />
         <Row k="Bookings" v={String(g.bookings.length)} />
-        <Button variant="secondary" className="mt-4" onClick={() => { resetGym(); toast.success("Demo data reset"); }}>
-          Reset demo data
-        </Button>
       </div>
     </Page>
   );
