@@ -43,6 +43,13 @@
       "when": 1793906986046,
       "tag": "0005_workout_booked_counts_function",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793907286500,
+      "tag": "0006_book_session_atomic",
+      "breakpoints": true
     }
   ]
 }
