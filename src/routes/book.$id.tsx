@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loading, Page, Row, fmtDate } from "@/components/gym/format";
-import { getGym, setGym, useGym } from "@/lib/store";
-import { bookSession, depositOf, money, spotsLeft, CANCEL_HOURS } from "@/lib/gym";
+import { bookWorkout, useGym } from "@/lib/store";
+import { depositOf, money, spotsLeft, CANCEL_HOURS } from "@/lib/gym";
 
 export const Route = createFileRoute("/book/$id")({
   head: () => ({ meta: [
@@ -22,18 +22,22 @@ function Book() {
   const g = useGym();
   const nav = useNavigate();
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   if (!g) return <Loading />;
   const s = g.sessions.find((x) => x.id === id);
   if (!s) return <Page title="Session not found"><Link to="/workouts" className="text-primary">Back to workouts</Link></Page>;
   const dep = depositOf(s);
   const insufficient = g.balance < dep;
 
-  const confirm = () => {
-    const r = bookSession(getGym(), s.id);
-    if (!r.ok) { setError(r.error); return; }
-    setGym(r.state);
-    toast.success("Booking confirmed! Your QR code is ready.");
-    nav({ to: "/bookings/$id", params: { id: r.bookingId } });
+  const confirm = async () => {
+    if (busy) return;
+    setBusy(true); setError("");
+    try {
+      const bookingId = await bookWorkout(s.id);
+      toast.success("Booking confirmed! Your QR code is ready.");
+      nav({ to: "/bookings/$id", params: { id: String(bookingId) } });
+    } catch (e) { setError(e instanceof Error ? e.message : "Booking failed."); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -61,7 +65,7 @@ function Book() {
               {(insufficient || error.startsWith("Insufficient")) && <> <Link to="/wallet" className="underline">Top up</Link></>}
             </p>
           )}
-          <Button className="mt-4 h-12 w-full text-base font-bold" onClick={confirm}>
+          <Button className="mt-4 h-12 w-full text-base font-bold" onClick={confirm} disabled={busy}>
             Pay {money(dep)} deposit & confirm
           </Button>
           <p className="mt-3 text-xs text-muted-foreground">

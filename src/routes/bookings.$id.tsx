@@ -3,8 +3,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, Row, StatusBadge, fmtDate } from "@/components/gym/format";
-import { getGym, setGym, useGym } from "@/lib/store";
-import { cancelBooking, canCancel, money, statusOf, CANCEL_HOURS } from "@/lib/gym";
+import { cancelBookingDb, useGym } from "@/lib/store";
+import { canCancel, money, statusOf, CANCEL_HOURS } from "@/lib/gym";
 
 export const Route = createFileRoute("/bookings/$id")({
   head: () => ({ meta: [
@@ -25,11 +25,11 @@ function Detail() {
   if (!b || !s) return <Page title="Booking not found"><Link to="/bookings" className="text-primary">Back to bookings</Link></Page>;
   const st = statusOf(b, s);
 
-  const cancel = () => {
-    const next = cancelBooking(getGym(), b.id);
-    if (!next) { toast.error("This booking can no longer be cancelled."); return; }
-    setGym(next);
-    toast.success(`Booking cancelled. ${money(b.deposit)} refunded to your wallet.`);
+  const cancel = async () => {
+    try {
+      await cancelBookingDb(b.id);
+      toast.success(`Booking cancelled. ${money(b.deposit)} refunded to your wallet.`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not cancel."); }
   };
 
   return (
@@ -39,7 +39,7 @@ function Detail() {
           <div className={`rounded-xl bg-foreground p-4 ${st !== "upcoming" ? "opacity-40" : ""}`}>
             <QRCodeSVG value={b.code} size={200} />
           </div>
-          <p className="mt-3 font-mono text-sm font-bold">{b.id}</p>
+          <p className="mt-3 font-mono text-sm font-bold">BK-{b.id}</p>
           <p className="text-xs text-muted-foreground">Show this at reception</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-6">
@@ -47,7 +47,7 @@ function Detail() {
             <h2 className="text-2xl font-bold">{s.name}</h2>
             <StatusBadge status={st} />
           </div>
-          <Row k="Booking ID" v={b.id} />
+          <Row k="Booking ID" v={`BK-${b.id}`} />
           <Row k="Type" v={s.type} />
           <Row k="Trainer" v={s.trainer} />
           <Row k="Date & time" v={`${fmtDate(s.start)} · ${s.duration} min`} />
