@@ -3,7 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Booking, GymState, Session, Tx } from "./gym";
 
 /** Prototype has no sign-in yet: the app acts as the seeded demo member. */
-export const DEMO_EMAIL = "alex.morgan@example.com";
+export const DEMO_MEMBERS = [
+  { email: "alex.morgan@example.com", name: "Alex" },
+  { email: "sam.lee@example.com", name: "Sam" },
+] as const;
+const DEMO_KEY = "gymflow-demo-member";
+let demoEmail: string = DEMO_MEMBERS[0].email;
+export const getDemoEmail = () => demoEmail;
+/** Demo tool: switch which seeded member the app acts as. */
+export async function setDemoEmail(email: string) {
+  demoEmail = email;
+  try { localStorage.setItem(DEMO_KEY, email); } catch { /* ignore */ }
+  await refreshGym();
+}
 
 let state: GymState | null = null;
 let memberId: number | null = null;
@@ -12,7 +24,7 @@ const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
 export async function refreshGym() {
-  const m = await supabase.from("members").select("*").eq("email", DEMO_EMAIL).single();
+  const m = await supabase.from("members").select("*").eq("email", demoEmail).single();
   if (m.error) throw m.error;
   memberId = m.data.member_id;
   const [w, b, t, q] = await Promise.all([
@@ -47,6 +59,7 @@ export async function refreshGym() {
 }
 
 function ensureLoaded() {
+  try { const saved = localStorage.getItem(DEMO_KEY); if (saved && DEMO_MEMBERS.some((m) => m.email === saved)) demoEmail = saved; } catch { /* ignore */ }
   if (!loading) loading = refreshGym().catch((e) => { console.error(e); loading = null; });
 }
 

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useGym, DEMO_MEMBERS, setDemoEmail } from "@/lib/store";
 import { Home, Dumbbell, CalendarCheck, Wallet, User } from "lucide-react";
 
 const items = [
@@ -8,6 +9,21 @@ const items = [
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
+
+function DemoSwitcher() {
+  const g = useGym();
+  return (
+    <label className="flex items-center gap-2 rounded-full border border-dashed border-primary/60 px-3 py-1 text-xs text-muted-foreground">
+      <span className="font-bold uppercase tracking-wide text-primary">Demo</span>
+      <span className="hidden sm:inline">Switch demo member</span>
+      <select aria-label="Switch demo member (demo tool)" value={g?.email ?? DEMO_MEMBERS[0].email}
+        onChange={(e) => void setDemoEmail(e.target.value)}
+        className="rounded bg-secondary px-2 py-1 text-xs font-semibold text-foreground">
+        {DEMO_MEMBERS.map((m) => <option key={m.email} value={m.email}>{m.name}</option>)}
+      </select>
+    </label>
+  );
+}
 
 export function Nav() {
   return (
@@ -26,6 +42,7 @@ export function Nav() {
               </Link>
             ))}
           </nav>
+          <DemoSwitcher />
         </div>
       </header>
       <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-border bg-card md:hidden">
