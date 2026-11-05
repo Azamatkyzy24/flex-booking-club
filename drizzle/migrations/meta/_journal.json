@@ -15,6 +15,13 @@
       "when": 1793893614663,
       "tag": "0001_workouts_required_trainer_category",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793894508466,
+      "tag": "0002_waitlist_and_audit_log",
+      "breakpoints": true
     }
   ]
 }

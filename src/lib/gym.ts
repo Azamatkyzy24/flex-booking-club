@@ -10,7 +10,7 @@ export interface Booking {
   deposit: number; createdAt: string; code: string;
 }
 export interface Tx { id: string; type: "topup" | "deposit" | "refund"; amount: number; date: string; label: string }
-export interface GymState { name: string; email: string; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[] }
+export interface GymState { name: string; email: string; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[]; waitlist?: string[] }
 
 /** Cancellation allowed until this many hours before start; deposit refunded in full. */
 export const CANCEL_HOURS = 12;

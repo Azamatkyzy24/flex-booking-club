@@ -1,22 +1,38 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Clock, Users, User } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { depositOf, money, spotsLeft, type Session } from "@/lib/gym";
+import { joinWaitlist } from "@/lib/store";
 import { fmtDate } from "./format";
 
-export function SessionCard({ s, booked }: { s: Session; booked?: boolean }) {
-  const left = spotsLeft(s);
+export function SessionCard({ s, booked, waitlisted }: { s: Session; booked?: boolean; waitlisted?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const left = Math.max(0, spotsLeft(s));
   const full = left <= 0;
+  const spotOpened = waitlisted && !full && !booked;
+  const join = async () => {
+    setBusy(true);
+    try { await joinWaitlist(s.id); toast.success("You're on the waitlist."); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-2">
         <Badge variant={s.type === "Group Class" ? "secondary" : "default"}>{s.type}</Badge>
         <span className={`text-xs font-bold ${full ? "text-destructive" : "text-primary"}`}>
-          {full ? "FULL" : `${left} spot${left > 1 ? "s" : ""} left`}
+          {left} spot{left === 1 ? "" : "s"} left
         </span>
       </div>
       <h3 className="mt-3 text-lg font-bold">{s.name}</h3>
+      {spotOpened && (
+        <p className="mt-2 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary">
+          A spot opened up — book it before it's gone!
+        </p>
+      )}
       <div className="mt-2 space-y-1 text-sm text-muted-foreground">
         <p className="flex items-center gap-2"><User className="h-4 w-4" />{s.trainer}</p>
         <p className="flex items-center gap-2"><Clock className="h-4 w-4" />{fmtDate(s.start)} · {s.duration} min</p>
@@ -30,7 +46,9 @@ export function SessionCard({ s, booked }: { s: Session; booked?: boolean }) {
         {booked ? (
           <Button disabled variant="secondary">Booked</Button>
         ) : full ? (
-          <Button disabled variant="secondary">Full</Button>
+          waitlisted
+            ? <Button disabled variant="secondary">On waitlist</Button>
+            : <Button variant="outline" disabled={busy} onClick={join}>Join waitlist</Button>
         ) : (
           <Button asChild><Link to="/book/$id" params={{ id: s.id }}>Book</Link></Button>
         )}

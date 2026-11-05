@@ -45,7 +45,8 @@ function Workouts() {
       {list.length === 0 ? <p className="text-muted-foreground">No sessions match these filters.</p> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((s) => <SessionCard key={s.id} s={s}
-            booked={g.bookings.some((b) => b.sessionId === s.id && !b.cancelled)} />)}
+            booked={g.bookings.some((b) => b.sessionId === s.id && !b.cancelled)}
+            waitlisted={g.waitlist?.includes(s.id) ?? false} />)}
         </div>
       )}
     </Page>
