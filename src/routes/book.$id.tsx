@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loading, Page, Row, fmtDate } from "@/components/gym/format";
-import { bookWorkout, useGym } from "@/lib/store";
+import { bookSession, refreshGym, useGym } from "@/lib/store";
 import { depositOf, money, spotsLeft, CANCEL_HOURS } from "@/lib/gym";
 
 export const Route = createFileRoute("/book/$id")({
