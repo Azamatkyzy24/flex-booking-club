@@ -33,10 +33,20 @@ function Book() {
     if (busy) return;
     setBusy(true); setError("");
     try {
-      const bookingId = await bookWorkout(s.id);
+      const bookingId = await bookSession(s.id);
       toast.success("Booking confirmed! Your QR code is ready.");
       nav({ to: "/bookings/$id", params: { id: String(bookingId) } });
-    } catch (e) { setError(e instanceof Error ? e.message : "Booking failed."); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Booking failed.";
+      if (msg.includes("SESSION_FULL")) {
+        setError("Sorry, this class just filled up");
+        void refreshGym(); // pull the fresh spots count
+      } else if (msg.includes("INSUFFICIENT_BALANCE")) {
+        setError("Insufficient funds. Please top up your wallet.");
+      } else {
+        setError(msg);
+      }
+    }
     finally { setBusy(false); }
   };
 
