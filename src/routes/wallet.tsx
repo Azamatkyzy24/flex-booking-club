@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, fmtDate } from "@/components/gym/format";
-import { getGym, setGym, useGym } from "@/lib/store";
-import { money, topUp } from "@/lib/gym";
+import { topUpWallet, useGym } from "@/lib/store";
+import { money } from "@/lib/gym";
 
 export const Route = createFileRoute("/wallet")({
   head: () => ({ meta: [
@@ -18,7 +18,10 @@ export const Route = createFileRoute("/wallet")({
 function WalletPage() {
   const g = useGym();
   if (!g) return <Loading />;
-  const add = (n: number) => { setGym(topUp(getGym(), n)); toast.success(`${money(n)} added (demo)`); };
+  const add = async (n: number) => {
+    try { await topUpWallet(n); toast.success(`${money(n)} added (demo)`); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Top up failed."); }
+  };
   return (
     <Page title="Wallet">
       <div className="bg-hero mb-8 rounded-3xl border border-border p-6">

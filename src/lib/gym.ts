@@ -2,7 +2,7 @@ export type WorkoutType = "Group Class" | "Personal Training";
 export interface Session {
   id: string; name: string; type: WorkoutType; trainer: string;
   start: string; duration: number; price: number; depositPct: number;
-  capacity: number; booked: number;
+  capacity: number; booked: number; deposit?: number;
 }
 export type BookingStatus = "upcoming" | "completed" | "cancelled";
 export interface Booking {
@@ -15,7 +15,7 @@ export interface GymState { name: string; email: string; balance: number; sessio
 /** Cancellation allowed until this many hours before start; deposit refunded in full. */
 export const CANCEL_HOURS = 12;
 
-export const depositOf = (s: Pick<Session, "price" | "depositPct">) => Math.round(s.price * s.depositPct) / 100;
+export const depositOf = (s: Pick<Session, "price" | "depositPct" | "deposit">) => s.deposit ?? Math.round(s.price * s.depositPct) / 100;
 export const spotsLeft = (s: Session) => s.capacity - s.booked;
 export const money = (n: number) => `$${n.toFixed(2)}`;
 
