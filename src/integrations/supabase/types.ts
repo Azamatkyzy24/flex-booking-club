@@ -14,13 +14,193 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          booked_at: string
+          booking_id: number
+          deposit_paid: number
+          member_id: number
+          status: string
+          workout_id: number
+        }
+        Insert: {
+          booked_at?: string
+          booking_id?: never
+          deposit_paid: number
+          member_id: number
+          status?: string
+          workout_id: number
+        }
+        Update: {
+          booked_at?: string
+          booking_id?: never
+          deposit_paid?: number
+          member_id?: number
+          status?: string
+          workout_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "bookings_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["workout_id"]
+          },
+        ]
+      }
+      members: {
+        Row: {
+          email: string
+          full_name: string
+          member_id: number
+          membership_type: string | null
+          wallet_balance: number
+        }
+        Insert: {
+          email: string
+          full_name: string
+          member_id?: never
+          membership_type?: string | null
+          wallet_balance?: number
+        }
+        Update: {
+          email?: string
+          full_name?: string
+          member_id?: never
+          membership_type?: string | null
+          wallet_balance?: number
+        }
+        Relationships: []
+      }
+      trainers: {
+        Row: {
+          email: string | null
+          full_name: string
+          specialty: string | null
+          trainer_id: number
+        }
+        Insert: {
+          email?: string | null
+          full_name: string
+          specialty?: string | null
+          trainer_id?: never
+        }
+        Update: {
+          email?: string | null
+          full_name?: string
+          specialty?: string | null
+          trainer_id?: never
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          booking_id: number | null
+          created_at: string
+          member_id: number
+          transaction_id: number
+          type: string
+        }
+        Insert: {
+          amount: number
+          booking_id?: number | null
+          created_at?: string
+          member_id: number
+          transaction_id?: never
+          type: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: number | null
+          created_at?: string
+          member_id?: number
+          transaction_id?: never
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["member_id"]
+          },
+        ]
+      }
+      workouts: {
+        Row: {
+          capacity: number
+          category: string | null
+          deposit_amount: number
+          duration_minutes: number
+          price: number
+          start_time: string
+          title: string
+          trainer_id: number | null
+          workout_id: number
+        }
+        Insert: {
+          capacity: number
+          category?: string | null
+          deposit_amount: number
+          duration_minutes?: number
+          price: number
+          start_time: string
+          title: string
+          trainer_id?: number | null
+          workout_id?: never
+        }
+        Update: {
+          capacity?: number
+          category?: string | null
+          deposit_amount?: number
+          duration_minutes?: number
+          price?: number
+          start_time?: string
+          title?: string
+          trainer_id?: number | null
+          workout_id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workouts_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainers"
+            referencedColumns: ["trainer_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      book_workout: {
+        Args: { p_member_id: number; p_workout_id: number }
+        Returns: number
+      }
+      cancel_booking: { Args: { p_booking_id: number }; Returns: undefined }
+      top_up_wallet: {
+        Args: { p_amount: number; p_member_id: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
