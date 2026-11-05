@@ -146,35 +146,35 @@ export type Database = {
       workouts: {
         Row: {
           capacity: number
-          category: string | null
+          category: string
           deposit_amount: number
           duration_minutes: number
           price: number
           start_time: string
           title: string
-          trainer_id: number | null
+          trainer_id: number
           workout_id: number
         }
         Insert: {
           capacity: number
-          category?: string | null
+          category: string
           deposit_amount: number
           duration_minutes?: number
           price: number
           start_time: string
           title: string
-          trainer_id?: number | null
+          trainer_id: number
           workout_id?: never
         }
         Update: {
           capacity?: number
-          category?: string | null
+          category?: string
           deposit_amount?: number
           duration_minutes?: number
           price?: number
           start_time?: string
           title?: string
-          trainer_id?: number | null
+          trainer_id?: number
           workout_id?: never
         }
         Relationships: [
