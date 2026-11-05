@@ -15,12 +15,13 @@ export async function refreshGym() {
   const m = await supabase.from("members").select("*").eq("email", DEMO_EMAIL).single();
   if (m.error) throw m.error;
   memberId = m.data.member_id;
-  const [w, b, t] = await Promise.all([
+  const [w, b, t, q] = await Promise.all([
     supabase.from("workouts").select("*, trainers(full_name)").order("start_time"),
     supabase.from("bookings").select("booking_id, member_id, workout_id, status, deposit_paid, booked_at"),
     supabase.from("wallet_transactions").select("*").eq("member_id", memberId).order("created_at", { ascending: false }),
+    supabase.from("waitlist").select("workout_id").eq("member_id", memberId),
   ]);
-  if (w.error || b.error || t.error) throw w.error ?? b.error ?? t.error;
+  if (w.error || b.error || t.error || q.error) throw w.error ?? b.error ?? t.error ?? q.error;
   const sessions: Session[] = w.data.map((x) => ({
     id: String(x.workout_id), name: x.title, type: (x.category ?? "Group Class") as Session["type"],
     trainer: x.trainers?.full_name ?? "TBA", start: x.start_time, duration: x.duration_minutes,
@@ -41,7 +42,7 @@ export async function refreshGym() {
     const label = type === "topup" ? "Wallet top up (demo)" : `${type === "deposit" ? "Deposit" : "Refund"} · ${s?.name ?? "Booking"}`;
     return { id: String(x.transaction_id), type, amount: Number(x.amount), date: x.created_at, label };
   });
-  state = { name: m.data.full_name, email: m.data.email, balance: Number(m.data.wallet_balance), sessions, bookings, txs };
+  state = { name: m.data.full_name, email: m.data.email, balance: Number(m.data.wallet_balance), sessions, bookings, txs, waitlist: q.data.map((x) => String(x.workout_id)) };
   emit();
 }
 
@@ -62,6 +63,9 @@ export const cancelBookingDb = (bookingId: string) =>
   rpcError(supabase.rpc("cancel_booking", { p_booking_id: Number(bookingId) }));
 export const topUpWallet = (amount: number) =>
   rpcError(supabase.rpc("top_up_wallet", { p_member_id: memberId!, p_amount: amount }));
+
+export const joinWaitlist = (workoutId: string) =>
+  rpcError(supabase.rpc("join_waitlist", { p_member_id: memberId!, p_workout_id: Number(workoutId) }));
 
 /** Returns null during SSR and until the database has loaded. */
 export function useGym(): GymState | null {
