@@ -305,6 +305,13 @@ export type Database = {
         Args: { p_amount: number; p_member_id: number }
         Returns: undefined
       }
+      workout_booked_counts: {
+        Args: never
+        Returns: {
+          booked: number
+          workout_id: number
+        }[]
+      }
     }
     Enums: {
       app_role: "member" | "trainer" | "admin"
