@@ -7,6 +7,8 @@ import { Loading, Page, Row, fmtDate } from "@/components/gym/format";
 import { bookSession, refreshGym, useGym } from "@/lib/store";
 import { depositOf, money, spotsLeft, CANCEL_HOURS } from "@/lib/gym";
 import { TrainerLink } from "@/components/gym/TrainerLink";
+import { CourseReviews } from "@/components/gym/CourseReviews";
+import { RatingValue } from "@/components/gym/Stars";
 
 export const Route = createFileRoute("/book/$id")({
   head: () => ({ meta: [
@@ -59,10 +61,12 @@ function Book() {
         <div className="rounded-2xl border border-border bg-card p-6">
           <Badge>{s.type}</Badge>
           <h2 className="mt-3 text-2xl font-bold">{s.name}</h2>
+          {s.description && <p className="mt-2 text-muted-foreground">{s.description}</p>}
           <Row k="Trainer" v={<TrainerLink session={s} />} />
           <Row k="Date & time" v={fmtDate(s.start)} />
           <Row k="Duration" v={`${s.duration} min`} />
           <Row k="Available spots" v={`${spotsLeft(s)} of ${s.capacity}`} />
+          {s.rating != null && !!s.reviewCount && <Row k="Rating" v={<RatingValue rating={s.rating} count={s.reviewCount} />} />}
         </div>
         <div className="rounded-2xl border border-border bg-card p-6">
           <h3 className="mb-2 font-bold">Payment breakdown</h3>
@@ -86,6 +90,7 @@ function Book() {
           </p>
         </div>
       </div>
+      <CourseReviews workoutId={s.id} />
     </Page>
   );
 }

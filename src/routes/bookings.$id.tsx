@@ -4,8 +4,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, Row, StatusBadge, fmtDate } from "@/components/gym/format";
 import { cancelBookingDb, useGym } from "@/lib/store";
-import { canCancel, money, statusOf, CANCEL_HOURS } from "@/lib/gym";
+import { canCancel, canReview, money, reviewOf, statusOf, CANCEL_HOURS } from "@/lib/gym";
 import { TrainerLink } from "@/components/gym/TrainerLink";
+import { MyReview, ReviewForm } from "@/components/gym/ReviewForm";
+import { RatingValue } from "@/components/gym/Stars";
 
 export const Route = createFileRoute("/bookings/$id")({
   head: () => ({ meta: [
@@ -27,6 +29,7 @@ function Detail() {
   const s = b && g.sessions.find((x) => x.id === b.sessionId);
   if (!b || !s) return <Page title="Booking not found"><Link to="/bookings" className="text-primary">Back to bookings</Link></Page>;
   const st = statusOf(b, s);
+  const review = reviewOf(g, b.id);
 
   const cancel = async () => {
     try {
@@ -50,6 +53,7 @@ function Detail() {
             <h2 className="text-2xl font-bold">{s.name}</h2>
             <StatusBadge status={st} />
           </div>
+          {s.description && <p className="mb-2 text-muted-foreground">{s.description}</p>}
           <Row k="Booking ID" v={`BK-${b.id}`} />
           <Row k="Type" v={s.type} />
           <Row k="Trainer" v={<TrainerLink session={s} />} />
@@ -57,6 +61,7 @@ function Detail() {
           <Row k="Total price" v={money(b.total)} />
           <Row k="Deposit paid" v={money(b.deposit)} />
           <Row k="Remaining at reception" v={money(b.total - b.deposit)} strong />
+          {s.rating != null && !!s.reviewCount && <Row k="Course rating" v={<RatingValue rating={s.rating} count={s.reviewCount} />} />}
           {st === "upcoming" && (
             canCancel(b, s) ? (
               <Button variant="destructive" className="mt-4" onClick={cancel}>Cancel booking</Button>
@@ -64,6 +69,8 @@ function Detail() {
               <p className="mt-4 text-sm text-muted-foreground">Cancellation deadline ({CANCEL_HOURS}h before start) has passed.</p>
             )
           )}
+          {review ? <MyReview review={review} />
+            : canReview(b, s, false) && <ReviewForm bookingId={b.id} sessionName={s.name} />}
         </div>
       </div>
     </Page>

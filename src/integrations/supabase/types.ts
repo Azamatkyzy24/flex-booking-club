@@ -171,6 +171,38 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          booking_id: number
+          comment: string | null
+          created_at: string
+          rating: number
+          review_id: number
+        }
+        Insert: {
+          booking_id: number
+          comment?: string | null
+          created_at?: string
+          rating: number
+          review_id?: never
+        }
+        Update: {
+          booking_id?: number
+          comment?: string | null
+          created_at?: string
+          rating?: number
+          review_id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["booking_id"]
+          },
+        ]
+      }
       trainers: {
         Row: {
           biography: string | null
@@ -323,6 +355,7 @@ export type Database = {
           capacity: number
           category: string
           deposit_amount: number
+          description: string | null
           duration_minutes: number
           price: number
           start_time: string
@@ -334,6 +367,7 @@ export type Database = {
           capacity: number
           category: string
           deposit_amount: number
+          description?: string | null
           duration_minutes?: number
           price: number
           start_time: string
@@ -345,6 +379,7 @@ export type Database = {
           capacity?: number
           category?: string
           deposit_amount?: number
+          description?: string | null
           duration_minutes?: number
           price?: number
           start_time?: string
@@ -388,6 +423,10 @@ export type Database = {
         Args: { p_member_id: number; p_workout_id: number }
         Returns: number
       }
+      submit_review: {
+        Args: { p_booking_id: number; p_comment?: string; p_rating: number }
+        Returns: number
+      }
       top_up_wallet: {
         Args: { p_amount: number; p_member_id: number }
         Returns: undefined
@@ -397,6 +436,24 @@ export type Database = {
         Returns: {
           booked: number
           workout_id: number
+        }[]
+      }
+      workout_rating_summary: {
+        Args: never
+        Returns: {
+          avg_rating: number
+          review_count: number
+          workout_id: number
+        }[]
+      }
+      workout_reviews: {
+        Args: { p_workout_id: number }
+        Returns: {
+          comment: string
+          created_at: string
+          rating: number
+          review_id: number
+          reviewer: string
         }[]
       }
     }

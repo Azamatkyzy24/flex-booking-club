@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import type { CourseReview } from "./gym";
 
 export type Trainer = Database["public"]["Tables"]["trainers"]["Row"];
 export type Announcement = Database["public"]["Tables"]["announcements"]["Row"];
@@ -32,6 +33,17 @@ export const newsQuery = queryOptions({
       .order("publication_date", { ascending: false });
     if (result.error) throw result.error;
     return result.data;
+  },
+  staleTime: 30_000,
+});
+
+/** Latest reviews of a course (same title and trainer), written by any member. */
+export const courseReviewsQuery = (workoutId: string) => queryOptions({
+  queryKey: ["course-reviews", workoutId],
+  queryFn: async (): Promise<CourseReview[]> => {
+    const { data, error } = await supabase.rpc("workout_reviews", { p_workout_id: Number(workoutId) });
+    if (error) throw error;
+    return data.map((r) => ({ id: String(r.review_id), rating: r.rating, comment: r.comment, createdAt: r.created_at, reviewer: r.reviewer }));
   },
   staleTime: 30_000,
 });

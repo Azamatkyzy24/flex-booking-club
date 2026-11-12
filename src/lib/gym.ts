@@ -3,6 +3,10 @@ export interface Session {
   id: string; name: string; type: WorkoutType; trainer: string; trainerId?: number; trainerSlug?: string | null;
   start: string; duration: number; price: number; depositPct: number;
   capacity: number; booked: number; deposit?: number;
+  /** What the course is about; null when no description was written. */
+  description?: string | null;
+  /** Average rating (1-5) of this course and how many reviews it is based on. */
+  rating?: number | null; reviewCount?: number;
 }
 export type BookingStatus = "upcoming" | "completed" | "cancelled";
 export interface Booking {
@@ -10,7 +14,11 @@ export interface Booking {
   deposit: number; createdAt: string; code: string;
 }
 export interface Tx { id: string; type: "topup" | "deposit" | "refund"; amount: number; date: string; label: string }
-export interface GymState { name: string; email: string; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[]; waitlist?: string[] }
+/** The signed-in member's own review of a finished booking. */
+export interface Review { bookingId: string; rating: number; comment: string | null; createdAt: string }
+/** A review of a course written by any member (first name only). */
+export interface CourseReview { id: string; rating: number; comment: string | null; createdAt: string; reviewer: string }
+export interface GymState { name: string; email: string; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[]; waitlist?: string[]; reviews?: Review[] }
 
 /** Cancellation allowed until this many hours before start; deposit refunded in full. */
 export const CANCEL_HOURS = 12;
@@ -25,6 +33,14 @@ export function statusOf(b: Booking, s: Session, now = Date.now()): BookingStatu
 }
 export const canCancel = (b: Booking, s: Session, now = Date.now()) =>
   !b.cancelled && new Date(s.start).getTime() - now > CANCEL_HOURS * 3600000;
+
+/** Reviews are limited to this many characters (same limit as the database). */
+export const REVIEW_MAX_LENGTH = 500;
+export const hasEnded = (s: Session, now = Date.now()) => new Date(s.start).getTime() + s.duration * 60000 <= now;
+export const reviewOf = (g: Pick<GymState, "reviews">, bookingId: string) => g.reviews?.find((r) => r.bookingId === bookingId);
+/** A member can review a booking once, after the session has finished, unless it was cancelled. */
+export const canReview = (b: Booking, s: Session, reviewed: boolean, now = Date.now()) =>
+  !b.cancelled && !reviewed && hasEnded(s, now);
 
 const uid = (p: string) => `${p}-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1296).toString(36).toUpperCase()}`;
 

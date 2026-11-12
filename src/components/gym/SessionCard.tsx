@@ -8,6 +8,7 @@ import { depositOf, money, spotsLeft, type Session } from "@/lib/gym";
 import { joinWaitlist } from "@/lib/store";
 import { fmtDate } from "./format";
 import { TrainerLink } from "./TrainerLink";
+import { RatingValue } from "./Stars";
 
 export function SessionCard({ s, booked, waitlisted, bookLabel = "Book" }: { s: Session; booked?: boolean; waitlisted?: boolean; bookLabel?: string }) {
   const [busy, setBusy] = useState(false);
@@ -29,6 +30,7 @@ export function SessionCard({ s, booked, waitlisted, bookLabel = "Book" }: { s: 
         </span>
       </div>
       <h3 className="mt-3 text-lg font-bold">{s.name}</h3>
+      {s.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{s.description}</p>}
       {spotOpened && (
         <p className="mt-2 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary">
           A spot opened up — book it before it's gone!
@@ -38,6 +40,9 @@ export function SessionCard({ s, booked, waitlisted, bookLabel = "Book" }: { s: 
         <p className="flex items-center gap-2"><User className="h-4 w-4" /><TrainerLink session={s} /></p>
         <p className="flex items-center gap-2"><Clock className="h-4 w-4" />{fmtDate(s.start)} · {s.duration} min</p>
         <p className="flex items-center gap-2"><Users className="h-4 w-4" />{s.booked}/{s.capacity} booked</p>
+        {s.rating != null && !!s.reviewCount && (
+          <p className="flex items-center gap-2"><RatingValue rating={s.rating} count={s.reviewCount} /></p>
+        )}
       </div>
       <div className="mt-4 flex items-end justify-between border-t border-border pt-4">
         <div>

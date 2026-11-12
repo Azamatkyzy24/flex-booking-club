@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Loading, Page, StatusBadge, fmtDate } from "@/components/gym/format";
 import { useGym } from "@/lib/store";
-import { money, statusOf, CANCEL_HOURS, type BookingStatus } from "@/lib/gym";
+import { money, reviewOf, statusOf, CANCEL_HOURS, type BookingStatus } from "@/lib/gym";
 import { TrainerLink } from "@/components/gym/TrainerLink";
+import { StarsStatic } from "@/components/gym/Stars";
 
 export const Route = createFileRoute("/bookings/")({
   head: () => ({ meta: [
@@ -56,7 +57,12 @@ function Bookings() {
                 <div><p className="text-muted-foreground">Deposit paid</p><p className="font-bold">{money(b.deposit)}</p></div>
                 <div><p className="text-muted-foreground">Due at gym</p><p className="font-bold text-primary">{money(b.total - b.deposit)}</p></div>
               </div>
-              <Link to="/bookings/$id" params={{ id: b.id }} className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">View booking</Link>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <Link to="/bookings/$id" params={{ id: b.id }} className="text-sm font-semibold text-primary hover:underline">View booking</Link>
+                {st === "completed" && (reviewOf(g, b.id)
+                  ? <span className="flex items-center gap-2 text-sm text-muted-foreground">Your rating <StarsStatic value={reviewOf(g, b.id)!.rating} /></span>
+                  : <Link to="/bookings/$id" params={{ id: b.id }} className="text-sm font-semibold text-primary hover:underline">Rate this session</Link>)}
+              </div>
             </article>
           ))}
         </div>

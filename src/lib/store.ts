@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Booking, GymState, Session, Tx } from "./gym";
+import type { Booking, GymState, Review, Session, Tx } from "./gym";
 
 let state: GymState | null = null;
 let memberId: number | null = null;
@@ -22,21 +22,31 @@ export async function refreshGym() {
   const m = await supabase.from("members").select("*").eq("user_id", uid).single();
   if (m.error) throw m.error;
   memberId = m.data.member_id;
-  const [w, b, t, q, c] = await Promise.all([
+  const [w, b, t, q, c, rv, rs] = await Promise.all([
     supabase.from("workouts").select("*, trainers(full_name, slug)").order("start_time"),
     supabase.from("bookings").select("booking_id, member_id, workout_id, status, deposit_paid, booked_at"),
     supabase.from("wallet_transactions").select("*").eq("member_id", memberId).order("created_at", { ascending: false }),
     supabase.from("waitlist").select("workout_id").eq("member_id", memberId),
     supabase.rpc("workout_booked_counts"),
+    // Reviews are optional: if they fail to load (for example the database update
+    // has not been applied yet) the rest of the app keeps working.
+    supabase.from("reviews").select("booking_id, rating, comment, created_at"),
+    supabase.rpc("workout_rating_summary"),
   ]);
   if (w.error || b.error || t.error || q.error || c.error) throw w.error ?? b.error ?? t.error ?? q.error ?? c.error;
   const counts = new Map(c.data.map((x) => [x.workout_id, Number(x.booked)]));
+  const ratings = new Map((rs.error ? [] : rs.data).map((x) => [x.workout_id, { avg: Number(x.avg_rating), count: Number(x.review_count) }]));
+  const reviews: Review[] = (rv.error ? [] : rv.data).map((x) => ({
+    bookingId: String(x.booking_id), rating: x.rating, comment: x.comment, createdAt: x.created_at,
+  }));
   const sessions: Session[] = w.data.map((x) => ({
     id: String(x.workout_id), name: x.title, type: (x.category ?? "Group Class") as Session["type"],
     trainer: x.trainers?.full_name ?? "TBA", trainerId: x.trainer_id, trainerSlug: x.trainers?.slug, start: x.start_time, duration: x.duration_minutes,
     price: Number(x.price), depositPct: Math.round((Number(x.deposit_amount) / Number(x.price)) * 100),
     deposit: Number(x.deposit_amount), capacity: x.capacity,
     booked: counts.get(x.workout_id) ?? 0,
+    description: x.description ?? null,
+    rating: ratings.get(x.workout_id)?.avg ?? null, reviewCount: ratings.get(x.workout_id)?.count ?? 0,
   }));
   const bookings: Booking[] = b.data.filter((x) => x.member_id === memberId)
     .sort((a, c) => c.booked_at.localeCompare(a.booked_at))
@@ -51,7 +61,7 @@ export async function refreshGym() {
     const label = type === "topup" ? "Wallet top up (demo)" : `${type === "deposit" ? "Deposit" : "Refund"} · ${s?.name ?? "Booking"}`;
     return { id: String(x.transaction_id), type, amount: Number(x.amount), date: x.created_at, label };
   });
-  state = { name: m.data.full_name, email: m.data.email, balance: Number(m.data.wallet_balance), sessions, bookings, txs, waitlist: q.data.map((x) => String(x.workout_id)) };
+  state = { name: m.data.full_name, email: m.data.email, balance: Number(m.data.wallet_balance), sessions, bookings, txs, waitlist: q.data.map((x) => String(x.workout_id)), reviews };
   emit();
 }
 
@@ -98,6 +108,11 @@ export const cancelBookingDb = (bookingId: string) =>
   rpcError(supabase.rpc("cancel_booking", { p_booking_id: Number(bookingId) }));
 export const topUpWallet = (amount: number) =>
   rpcError(supabase.rpc("top_up_wallet", { p_member_id: memberId!, p_amount: amount }));
+
+/** Saves a 1-5 rating and optional feedback for a finished booking. The database
+ *  checks that the booking is yours, the session has ended and it is not reviewed yet. */
+export const submitReview = (bookingId: string, rating: number, comment: string) =>
+  rpcError(supabase.rpc("submit_review", { p_booking_id: Number(bookingId), p_rating: rating, p_comment: comment }));
 
 export const joinWaitlist = (workoutId: string) =>
   rpcError(supabase.rpc("join_waitlist", { p_member_id: memberId!, p_workout_id: Number(workoutId) }));

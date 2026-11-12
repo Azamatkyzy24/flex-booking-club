@@ -15,3 +15,4 @@
 - Trainer profiles extend existing trainer rows; sessions carry trainer IDs and slugs for links without matching display names.
 - News uses read-only authenticated RLS and informational workout references; announcements never mutate workouts, bookings or wallets.
 - Catalog routes use client-only Query loaders under the existing login shell because member sessions are browser-held; Home news is a noncritical cached read.
+- Reviews: one per booking, written only through the security-definer submit_review() (own booking, session finished, not cancelled, rating 1-5, feedback up to 500 chars); the table is read-only to the app. Course ratings are computed by workout_rating_summary() (same title + trainer) and never stored; other members' reviews come from workout_reviews() with first names only. Workouts carry a description column shown on cards and booking pages.
