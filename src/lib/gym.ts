@@ -31,8 +31,16 @@ export function statusOf(b: Booking, s: Session, now = Date.now()): BookingStatu
   if (b.cancelled) return "cancelled";
   return new Date(s.start).getTime() + s.duration * 60000 < now ? "completed" : "upcoming";
 }
+/** true = more than CANCEL_HOURS before start, so the deposit is refunded. */
 export const canCancel = (b: Booking, s: Session, now = Date.now()) =>
   !b.cancelled && new Date(s.start).getTime() - now > CANCEL_HOURS * 3600000;
+
+// NEW 1: same rule with a clearer name, used for the refund decision
+export const isRefundable = (b: Booking, s: Session, now = Date.now()) => canCancel(b, s, now);
+
+// NEW 2: a booking can be cancelled at any time before the session starts
+export const canCancelAnytime = (b: Booking, s: Session, now = Date.now()) =>
+  !b.cancelled && new Date(s.start).getTime() > now;
 
 /** Reviews are limited to this many characters (same limit as the database). */
 export const REVIEW_MAX_LENGTH = 500;
@@ -69,16 +77,20 @@ export function bookSession(state: GymState, sessionId: string, now = Date.now()
   };
 }
 
+// NEW 3: late cancellation (less than 12h) is allowed, the spot is released, but the deposit is kept
 export function cancelBooking(state: GymState, bookingId: string, now = Date.now()): GymState | null {
   const b = state.bookings.find((x) => x.id === bookingId);
   const s = b && state.sessions.find((x) => x.id === b.sessionId);
-  if (!b || !s || !canCancel(b, s, now)) return null;
+  if (!b || !s || !canCancelAnytime(b, s, now)) return null;
+  const refund = isRefundable(b, s, now);
   return {
     ...state,
-    balance: Math.round((state.balance + b.deposit) * 100) / 100,
+    balance: refund ? Math.round((state.balance + b.deposit) * 100) / 100 : state.balance,
     sessions: state.sessions.map((x) => (x.id === s.id ? { ...x, booked: Math.max(0, x.booked - 1) } : x)),
     bookings: state.bookings.map((x) => (x.id === b.id ? { ...x, cancelled: true } : x)),
-    txs: [{ id: uid("TX"), type: "refund", amount: b.deposit, date: new Date(now).toISOString(), label: `Refund · ${s.name}` }, ...state.txs],
+    txs: refund
+      ? [{ id: uid("TX"), type: "refund", amount: b.deposit, date: new Date(now).toISOString(), label: `Refund · ${s.name}` }, ...state.txs]
+      : state.txs,
   };
 }
 

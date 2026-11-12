@@ -30,11 +30,21 @@ function Detail() {
   if (!b || !s) return <Page title="Booking not found"><Link to="/bookings" className="text-primary">Back to bookings</Link></Page>;
   const st = statusOf(b, s);
   const review = reviewOf(g, b.id);
+  // true = more than CANCEL_HOURS left, so the deposit is refunded
+  const refundable = canCancel(b, s);
 
   const cancel = async () => {
+    if (
+      !refundable &&
+      !window.confirm(`Less than ${CANCEL_HOURS}h left: the deposit (${money(b.deposit)}) will NOT be refunded. Cancel anyway?`)
+    ) return;
     try {
       await cancelBookingDb(b.id);
-      toast.success(`Booking cancelled. ${money(b.deposit)} refunded to your wallet.`);
+      toast.success(
+        refundable
+          ? `Booking cancelled. ${money(b.deposit)} refunded to your wallet.`
+          : "Booking cancelled. The deposit was not refunded.",
+      );
     } catch (e) { toast.error(e instanceof Error ? e.message : "Could not cancel."); }
   };
 
@@ -60,14 +70,21 @@ function Detail() {
           <Row k="Date & time" v={`${fmtDate(s.start)} · ${s.duration} min`} />
           <Row k="Total price" v={money(b.total)} />
           <Row k="Deposit paid" v={money(b.deposit)} />
-          <Row k="Remaining at reception" v={money(b.total - b.deposit)} strong />
+          {st !== "cancelled" && (
+            <Row k="Remaining at reception" v={money(b.total - b.deposit)} strong />
+          )}
           {s.rating != null && !!s.reviewCount && <Row k="Course rating" v={<RatingValue rating={s.rating} count={s.reviewCount} />} />}
           {st === "upcoming" && (
-            canCancel(b, s) ? (
-              <Button variant="destructive" className="mt-4" onClick={cancel}>Cancel booking</Button>
-            ) : (
-              <p className="mt-4 text-sm text-muted-foreground">Cancellation deadline ({CANCEL_HOURS}h before start) has passed.</p>
-            )
+            <>
+              {!refundable && (
+                <p className="mt-4 text-sm text-destructive">
+                  Less than {CANCEL_HOURS}h before start: you can still cancel, but the deposit ({money(b.deposit)}) will not be refunded.
+                </p>
+              )}
+              <Button variant={refundable ? "destructive" : "outline"} className="mt-4" onClick={cancel}>
+                Cancel booking
+              </Button>
+            </>
           )}
           {review ? <MyReview review={review} />
             : canReview(b, s, false) && <ReviewForm bookingId={b.id} sessionName={s.name} />}

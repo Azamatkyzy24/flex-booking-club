@@ -82,9 +82,14 @@ function Book() {
               {(insufficient || error.startsWith("Insufficient")) && <> <Link to="/wallet" className="underline">Top up</Link></>}
             </p>
           )}
-          <Button className="mt-4 h-12 w-full text-base font-bold" onClick={confirm} disabled={busy}>
-            Pay {money(dep)} deposit & confirm
+          <Button
+            className="mt-4 h-12 w-full text-base font-bold disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+            onClick={confirm}
+            disabled={busy || insufficient}
+          >
+            {insufficient ? "Top up your wallet to book" : `Pay ${money(dep)} deposit & confirm`}
           </Button>
+
           <p className="mt-3 text-xs text-muted-foreground">
             Free cancellation up to {CANCEL_HOURS} hours before start — deposit refunded to your wallet. Demo payment only.
           </p>
