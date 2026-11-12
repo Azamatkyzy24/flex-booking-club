@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loading, Page, Row, StatusBadge, fmtDate } from "@/components/gym/format";
 import { cancelBookingDb, useGym } from "@/lib/store";
 import { canCancel, money, statusOf, CANCEL_HOURS } from "@/lib/gym";
+import { TrainerLink } from "@/components/gym/TrainerLink";
 
 export const Route = createFileRoute("/bookings/$id")({
   head: () => ({ meta: [
@@ -12,6 +13,8 @@ export const Route = createFileRoute("/bookings/$id")({
     { name: "description", content: "Your booking QR code and payment details for reception." },
     { property: "og:title", content: "Booking Details — GymFlow" },
     { property: "og:description", content: "Show this QR code at GymFlow reception." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Detail,
 });
@@ -49,7 +52,7 @@ function Detail() {
           </div>
           <Row k="Booking ID" v={`BK-${b.id}`} />
           <Row k="Type" v={s.type} />
-          <Row k="Trainer" v={s.trainer} />
+          <Row k="Trainer" v={<TrainerLink session={s} />} />
           <Row k="Date & time" v={`${fmtDate(s.start)} · ${s.duration} min`} />
           <Row k="Total price" v={money(b.total)} />
           <Row k="Deposit paid" v={money(b.deposit)} />

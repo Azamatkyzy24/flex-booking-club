@@ -1,6 +1,6 @@
 export type WorkoutType = "Group Class" | "Personal Training";
 export interface Session {
-  id: string; name: string; type: WorkoutType; trainer: string;
+  id: string; name: string; type: WorkoutType; trainer: string; trainerId?: number; trainerSlug?: string | null;
   start: string; duration: number; price: number; depositPct: number;
   capacity: number; booked: number; deposit?: number;
 }

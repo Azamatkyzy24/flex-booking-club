@@ -11,6 +11,8 @@ export const Route = createFileRoute("/wallet")({
     { name: "description", content: "Your GymFlow wallet balance and transaction history." },
     { property: "og:title", content: "Wallet — GymFlow" },
     { property: "og:description", content: "Top up and track your GymFlow wallet." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: WalletPage,
 });

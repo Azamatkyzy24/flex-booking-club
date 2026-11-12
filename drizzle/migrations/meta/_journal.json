@@ -57,6 +57,13 @@
       "when": 1793914177518,
       "tag": "0007_seed_test_workouts_and_low_balance_member",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794472227604,
+      "tag": "0008_trainer_profiles_and_announcements",
+      "breakpoints": true
     }
   ]
 }

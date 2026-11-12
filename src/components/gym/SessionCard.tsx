@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { depositOf, money, spotsLeft, type Session } from "@/lib/gym";
 import { joinWaitlist } from "@/lib/store";
 import { fmtDate } from "./format";
+import { TrainerLink } from "./TrainerLink";
 
-export function SessionCard({ s, booked, waitlisted }: { s: Session; booked?: boolean; waitlisted?: boolean }) {
+export function SessionCard({ s, booked, waitlisted, bookLabel = "Book" }: { s: Session; booked?: boolean; waitlisted?: boolean; bookLabel?: string }) {
   const [busy, setBusy] = useState(false);
   const left = Math.max(0, spotsLeft(s));
   const full = left <= 0;
@@ -34,7 +35,7 @@ export function SessionCard({ s, booked, waitlisted }: { s: Session; booked?: bo
         </p>
       )}
       <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-        <p className="flex items-center gap-2"><User className="h-4 w-4" />{s.trainer}</p>
+        <p className="flex items-center gap-2"><User className="h-4 w-4" /><TrainerLink session={s} /></p>
         <p className="flex items-center gap-2"><Clock className="h-4 w-4" />{fmtDate(s.start)} · {s.duration} min</p>
         <p className="flex items-center gap-2"><Users className="h-4 w-4" />{s.booked}/{s.capacity} booked</p>
       </div>
@@ -50,7 +51,7 @@ export function SessionCard({ s, booked, waitlisted }: { s: Session; booked?: bo
             ? <Button disabled variant="secondary">On waitlist</Button>
             : <Button variant="outline" disabled={busy} onClick={join}>Join waitlist</Button>
         ) : (
-          <Button asChild><Link to="/book/$id" params={{ id: s.id }}>Book</Link></Button>
+          <Button asChild><Link to="/book/$id" params={{ id: s.id }}>{bookLabel}</Link></Button>
         )}
       </div>
     </div>

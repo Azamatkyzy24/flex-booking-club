@@ -10,6 +10,8 @@ export const Route = createFileRoute("/workouts")({
     { name: "description", content: "Browse group classes and personal training sessions and book a spot." },
     { property: "og:title", content: "Browse Workouts — GymFlow" },
     { property: "og:description", content: "Find and book your next workout session." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Workouts,
 });

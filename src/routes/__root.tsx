@@ -131,12 +131,12 @@ function RootComponent() {
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => setAuthed(!!data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") { setAuthed(true); void refreshGym(); }
-      else if (event === "SIGNED_OUT") { setAuthed(false); clearGym(); }
+      if (event === "SIGNED_IN") { setAuthed(true); void refreshGym(); void queryClient.invalidateQueries(); }
+      else if (event === "SIGNED_OUT") { setAuthed(false); clearGym(); void queryClient.cancelQueries(); queryClient.clear(); }
       else if (event === "USER_UPDATED") { void refreshGym(); }
     });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     if (authed === null) return;

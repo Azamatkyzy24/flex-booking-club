@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Loading, Page, StatusBadge, fmtDate } from "@/components/gym/format";
 import { useGym } from "@/lib/store";
 import { money, statusOf, CANCEL_HOURS, type BookingStatus } from "@/lib/gym";
+import { TrainerLink } from "@/components/gym/TrainerLink";
 
 export const Route = createFileRoute("/bookings/")({
   head: () => ({ meta: [
@@ -10,6 +11,8 @@ export const Route = createFileRoute("/bookings/")({
     { name: "description", content: "Your upcoming, completed and cancelled GymFlow bookings." },
     { property: "og:title", content: "My Bookings — GymFlow" },
     { property: "og:description", content: "Manage your GymFlow bookings." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Bookings,
 });
@@ -19,9 +22,9 @@ function Bookings() {
   const [tab, setTab] = useState<BookingStatus>("upcoming");
   if (!g) return <Loading />;
   const rows = g.bookings.map((b) => {
-    const s = g.sessions.find((x) => x.id === b.sessionId)!;
-    return { b, s, st: statusOf(b, s) };
-  });
+    const s = g.sessions.find((x) => x.id === b.sessionId);
+    return s ? [{ b, s, st: statusOf(b, s) }] : [];
+  }).flat();
   const list = rows.filter((r) => r.st === tab);
   return (
     <Page title="My Bookings">
@@ -39,12 +42,12 @@ function Bookings() {
       {list.length === 0 ? <p className="text-muted-foreground">No {tab} bookings.</p> : (
         <div className="grid gap-3 md:grid-cols-2">
           {list.map(({ b, s, st }) => (
-            <Link key={b.id} to="/bookings/$id" params={{ id: b.id }}
+            <article key={b.id}
               className="rounded-2xl border border-border bg-card p-5 hover:border-primary">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-lg font-bold">{s.name}</p>
-                  <p className="text-sm text-muted-foreground">{fmtDate(s.start)} · {s.trainer}</p>
+                  <p className="text-lg font-bold"><Link to="/bookings/$id" params={{ id: b.id }} className="hover:text-primary">{s.name}</Link></p>
+                  <p className="text-sm text-muted-foreground">{fmtDate(s.start)} · <TrainerLink session={s} /></p>
                 </div>
                 <StatusBadge status={st} />
               </div>
@@ -53,7 +56,8 @@ function Bookings() {
                 <div><p className="text-muted-foreground">Deposit paid</p><p className="font-bold">{money(b.deposit)}</p></div>
                 <div><p className="text-muted-foreground">Due at gym</p><p className="font-bold text-primary">{money(b.total - b.deposit)}</p></div>
               </div>
-            </Link>
+              <Link to="/bookings/$id" params={{ id: b.id }} className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">View booking</Link>
+            </article>
           ))}
         </div>
       )}

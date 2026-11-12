@@ -9,6 +9,8 @@ export const Route = createFileRoute("/register")({
     { name: "description", content: "Create your GymFlow member account." },
     { property: "og:title", content: "Create account — GymFlow" },
     { property: "og:description", content: "Join GymFlow to book classes and personal training." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Register,
 });

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loading, Page, Row, fmtDate } from "@/components/gym/format";
 import { bookSession, refreshGym, useGym } from "@/lib/store";
 import { depositOf, money, spotsLeft, CANCEL_HOURS } from "@/lib/gym";
+import { TrainerLink } from "@/components/gym/TrainerLink";
 
 export const Route = createFileRoute("/book/$id")({
   head: () => ({ meta: [
@@ -13,6 +14,8 @@ export const Route = createFileRoute("/book/$id")({
     { name: "description", content: "Review workout details and pay your deposit to confirm." },
     { property: "og:title", content: "Confirm Booking — GymFlow" },
     { property: "og:description", content: "Review and confirm your GymFlow booking." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Book,
 });
@@ -56,7 +59,7 @@ function Book() {
         <div className="rounded-2xl border border-border bg-card p-6">
           <Badge>{s.type}</Badge>
           <h2 className="mt-3 text-2xl font-bold">{s.name}</h2>
-          <Row k="Trainer" v={s.trainer} />
+          <Row k="Trainer" v={<TrainerLink session={s} />} />
           <Row k="Date & time" v={fmtDate(s.start)} />
           <Row k="Duration" v={`${s.duration} min`} />
           <Row k="Available spots" v={`${spotsLeft(s)} of ${s.capacity}`} />

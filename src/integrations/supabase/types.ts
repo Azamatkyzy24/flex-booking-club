@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          details: string
+          event_date: string | null
+          id: number
+          image_url: string | null
+          is_demo: boolean
+          is_important: boolean
+          is_published: boolean
+          publication_date: string
+          title: string
+          workout_id: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          details: string
+          event_date?: string | null
+          id?: number
+          image_url?: string | null
+          is_demo?: boolean
+          is_important?: boolean
+          is_published?: boolean
+          publication_date?: string
+          title: string
+          workout_id?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          details?: string
+          event_date?: string | null
+          id?: number
+          image_url?: string | null
+          is_demo?: boolean
+          is_important?: boolean
+          is_published?: boolean
+          publication_date?: string
+          title?: string
+          workout_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["workout_id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -117,22 +173,49 @@ export type Database = {
       }
       trainers: {
         Row: {
+          biography: string | null
+          certifications: string[] | null
           email: string | null
+          experience_years: number | null
+          expertise: string[] | null
           full_name: string
+          is_demo_profile: boolean
+          philosophy: string | null
+          photo_url: string | null
+          professional_title: string | null
+          slug: string | null
           specialty: string | null
           trainer_id: number
           user_id: string | null
         }
         Insert: {
+          biography?: string | null
+          certifications?: string[] | null
           email?: string | null
+          experience_years?: number | null
+          expertise?: string[] | null
           full_name: string
+          is_demo_profile?: boolean
+          philosophy?: string | null
+          photo_url?: string | null
+          professional_title?: string | null
+          slug?: string | null
           specialty?: string | null
           trainer_id?: never
           user_id?: string | null
         }
         Update: {
+          biography?: string | null
+          certifications?: string[] | null
           email?: string | null
+          experience_years?: number | null
+          expertise?: string[] | null
           full_name?: string
+          is_demo_profile?: boolean
+          philosophy?: string | null
+          photo_url?: string | null
+          professional_title?: string | null
+          slug?: string | null
           specialty?: string | null
           trainer_id?: never
           user_id?: string | null

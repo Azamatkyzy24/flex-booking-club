@@ -23,7 +23,7 @@ export async function refreshGym() {
   if (m.error) throw m.error;
   memberId = m.data.member_id;
   const [w, b, t, q, c] = await Promise.all([
-    supabase.from("workouts").select("*, trainers(full_name)").order("start_time"),
+    supabase.from("workouts").select("*, trainers(full_name, slug)").order("start_time"),
     supabase.from("bookings").select("booking_id, member_id, workout_id, status, deposit_paid, booked_at"),
     supabase.from("wallet_transactions").select("*").eq("member_id", memberId).order("created_at", { ascending: false }),
     supabase.from("waitlist").select("workout_id").eq("member_id", memberId),
@@ -33,7 +33,7 @@ export async function refreshGym() {
   const counts = new Map(c.data.map((x) => [x.workout_id, Number(x.booked)]));
   const sessions: Session[] = w.data.map((x) => ({
     id: String(x.workout_id), name: x.title, type: (x.category ?? "Group Class") as Session["type"],
-    trainer: x.trainers?.full_name ?? "TBA", start: x.start_time, duration: x.duration_minutes,
+    trainer: x.trainers?.full_name ?? "TBA", trainerId: x.trainer_id, trainerSlug: x.trainers?.slug, start: x.start_time, duration: x.duration_minutes,
     price: Number(x.price), depositPct: Math.round((Number(x.deposit_amount) / Number(x.price)) * 100),
     deposit: Number(x.deposit_amount), capacity: x.capacity,
     booked: counts.get(x.workout_id) ?? 0,

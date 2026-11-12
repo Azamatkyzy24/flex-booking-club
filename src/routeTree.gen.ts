@@ -11,13 +11,19 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NewsRouteImport } from './routes/news'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as TrainersRouteImport } from './routes/trainers'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as WorkoutsRouteImport } from './routes/workouts'
 import { Route as BookIdRouteImport } from './routes/book.$id'
 import { Route as BookingsIndexRouteImport } from './routes/bookings.index'
 import { Route as BookingsIdRouteImport } from './routes/bookings.$id'
+import { Route as NewsIndexRouteImport } from './routes/news.index'
+import { Route as NewsIdRouteImport } from './routes/news.$id'
+import { Route as TrainersIndexRouteImport } from './routes/trainers.index'
+import { Route as TrainersSlugRouteImport } from './routes/trainers.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,6 +35,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewsRoute = NewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -37,6 +48,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrainersRoute = TrainersRouteImport.update({
+  id: '/trainers',
+  path: '/trainers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WalletRoute = WalletRouteImport.update({
@@ -64,17 +80,43 @@ const BookingsIdRoute = BookingsIdRouteImport.update({
   path: '/bookings/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewsIndexRoute = NewsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NewsRoute,
+} as any)
+const NewsIdRoute = NewsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => NewsRoute,
+} as any)
+const TrainersIndexRoute = TrainersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TrainersRoute,
+} as any)
+const TrainersSlugRoute = TrainersSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => TrainersRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/news': typeof NewsRouteWithChildren
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/trainers': typeof TrainersRouteWithChildren
   '/wallet': typeof WalletRoute
   '/workouts': typeof WorkoutsRoute
   '/book/$id': typeof BookIdRoute
   '/bookings/$id': typeof BookingsIdRoute
+  '/news/$id': typeof NewsIdRoute
+  '/trainers/$slug': typeof TrainersSlugRoute
   '/bookings/': typeof BookingsIndexRoute
+  '/news/': typeof NewsIndexRoute
+  '/trainers/': typeof TrainersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,32 +127,48 @@ export interface FileRoutesByTo {
   '/workouts': typeof WorkoutsRoute
   '/book/$id': typeof BookIdRoute
   '/bookings/$id': typeof BookingsIdRoute
+  '/news/$id': typeof NewsIdRoute
+  '/trainers/$slug': typeof TrainersSlugRoute
   '/bookings': typeof BookingsIndexRoute
+  '/news': typeof NewsIndexRoute
+  '/trainers': typeof TrainersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/news': typeof NewsRouteWithChildren
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/trainers': typeof TrainersRouteWithChildren
   '/wallet': typeof WalletRoute
   '/workouts': typeof WorkoutsRoute
   '/book/$id': typeof BookIdRoute
   '/bookings/$id': typeof BookingsIdRoute
+  '/news/$id': typeof NewsIdRoute
+  '/trainers/$slug': typeof TrainersSlugRoute
   '/bookings/': typeof BookingsIndexRoute
+  '/news/': typeof NewsIndexRoute
+  '/trainers/': typeof TrainersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
+    | '/news'
     | '/profile'
     | '/register'
+    | '/trainers'
     | '/wallet'
     | '/workouts'
     | '/book/$id'
     | '/bookings/$id'
+    | '/news/$id'
+    | '/trainers/$slug'
     | '/bookings/'
+    | '/news/'
+    | '/trainers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -121,25 +179,37 @@ export interface FileRouteTypes {
     | '/workouts'
     | '/book/$id'
     | '/bookings/$id'
+    | '/news/$id'
+    | '/trainers/$slug'
     | '/bookings'
+    | '/news'
+    | '/trainers'
   id:
     | '__root__'
     | '/'
     | '/login'
+    | '/news'
     | '/profile'
     | '/register'
+    | '/trainers'
     | '/wallet'
     | '/workouts'
     | '/book/$id'
     | '/bookings/$id'
+    | '/news/$id'
+    | '/trainers/$slug'
     | '/bookings/'
+    | '/news/'
+    | '/trainers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  NewsRoute: typeof NewsRouteWithChildren
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
+  TrainersRoute: typeof TrainersRouteWithChildren
   WalletRoute: typeof WalletRoute
   WorkoutsRoute: typeof WorkoutsRoute
   BookIdRoute: typeof BookIdRoute
@@ -163,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/news': {
+      id: '/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -175,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trainers': {
+      id: '/trainers'
+      path: '/trainers'
+      fullPath: '/trainers'
+      preLoaderRoute: typeof TrainersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/wallet': {
@@ -212,14 +296,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookingsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/news/': {
+      id: '/news/'
+      path: '/'
+      fullPath: '/news/'
+      preLoaderRoute: typeof NewsIndexRouteImport
+      parentRoute: typeof NewsRoute
+    }
+    '/news/$id': {
+      id: '/news/$id'
+      path: '/$id'
+      fullPath: '/news/$id'
+      preLoaderRoute: typeof NewsIdRouteImport
+      parentRoute: typeof NewsRoute
+    }
+    '/trainers/': {
+      id: '/trainers/'
+      path: '/'
+      fullPath: '/trainers/'
+      preLoaderRoute: typeof TrainersIndexRouteImport
+      parentRoute: typeof TrainersRoute
+    }
+    '/trainers/$slug': {
+      id: '/trainers/$slug'
+      path: '/$slug'
+      fullPath: '/trainers/$slug'
+      preLoaderRoute: typeof TrainersSlugRouteImport
+      parentRoute: typeof TrainersRoute
+    }
   }
 }
+
+interface NewsRouteChildren {
+  NewsIdRoute: typeof NewsIdRoute
+  NewsIndexRoute: typeof NewsIndexRoute
+}
+
+const NewsRouteChildren: NewsRouteChildren = {
+  NewsIdRoute: NewsIdRoute,
+  NewsIndexRoute: NewsIndexRoute,
+}
+
+const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
+
+interface TrainersRouteChildren {
+  TrainersSlugRoute: typeof TrainersSlugRoute
+  TrainersIndexRoute: typeof TrainersIndexRoute
+}
+
+const TrainersRouteChildren: TrainersRouteChildren = {
+  TrainersSlugRoute: TrainersSlugRoute,
+  TrainersIndexRoute: TrainersIndexRoute,
+}
+
+const TrainersRouteWithChildren = TrainersRoute._addFileChildren(
+  TrainersRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  NewsRoute: NewsRouteWithChildren,
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
+  TrainersRoute: TrainersRouteWithChildren,
   WalletRoute: WalletRoute,
   WorkoutsRoute: WorkoutsRoute,
   BookIdRoute: BookIdRoute,

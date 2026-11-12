@@ -9,6 +9,8 @@ export const Route = createFileRoute("/login")({
     { name: "description", content: "Log in to your GymFlow account." },
     { property: "og:title", content: "Log in — GymFlow" },
     { property: "og:description", content: "Log in to book classes and manage your wallet." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Login,
 });

@@ -12,6 +12,8 @@ export const Route = createFileRoute("/profile")({
     { name: "description", content: "Your GymFlow member profile." },
     { property: "og:title", content: "Profile — GymFlow" },
     { property: "og:description", content: "Your GymFlow member profile." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Profile,
 });

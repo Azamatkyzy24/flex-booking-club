@@ -13,7 +13,7 @@ export function StatusBadge({ status }: { status: BookingStatus }) {
   return <Badge variant={v} className="capitalize">{status}</Badge>;
 }
 
-export function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
+export function Row({ k, v, strong }: { k: string; v: React.ReactNode; strong?: boolean }) {
   return (
     <div className={`flex justify-between py-1.5 ${strong ? "font-bold" : "text-muted-foreground"}`}>
       <span>{k}</span><span className={strong ? "text-primary" : "text-foreground"}>{v}</span>

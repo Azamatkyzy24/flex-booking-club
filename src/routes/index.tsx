@@ -4,6 +4,8 @@ import { SessionCard } from "@/components/gym/SessionCard";
 import { Loading, fmtDate, StatusBadge } from "@/components/gym/format";
 import { useGym } from "@/lib/store";
 import { money, statusOf } from "@/lib/gym";
+import { TrainerLink } from "@/components/gym/TrainerLink";
+import { AnnouncementBanner } from "@/components/gym/AnnouncementBanner";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
@@ -11,6 +13,8 @@ export const Route = createFileRoute("/")({
     { name: "description", content: "Your GymFlow dashboard: wallet, upcoming bookings and popular classes." },
     { property: "og:title", content: "GymFlow — Book your next workout" },
     { property: "og:description", content: "Book group classes and personal training with GymFlow." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: Home,
 });
@@ -19,7 +23,10 @@ function Home() {
   const g = useGym();
   if (!g) return <Loading />;
   const now = Date.now();
-  const upcoming = g.bookings.map((b) => ({ b, s: g.sessions.find((s) => s.id === b.sessionId)! }))
+  const upcoming = g.bookings.flatMap((b) => {
+    const s = g.sessions.find((s) => s.id === b.sessionId);
+    return s ? [{ b, s }] : [];
+  })
     .filter(({ b, s }) => statusOf(b, s, now) === "upcoming");
   const popular = g.sessions.filter((s) => new Date(s.start).getTime() > now)
     .sort((a, b) => b.booked / b.capacity - a.booked / a.capacity).slice(0, 3);
@@ -39,6 +46,8 @@ function Home() {
         </div>
       </section>
 
+      <AnnouncementBanner />
+
       <section>
         <h2 className="mb-4 text-xl font-bold">Upcoming bookings</h2>
         {upcoming.length === 0 ? (
@@ -46,14 +55,14 @@ function Home() {
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {upcoming.map(({ b, s }) => (
-              <Link key={b.id} to="/bookings/$id" params={{ id: b.id }}
+              <article key={b.id}
                 className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 hover:border-primary">
                 <div>
-                  <p className="font-bold">{s.name}</p>
-                  <p className="text-sm text-muted-foreground">{fmtDate(s.start)} · {s.trainer}</p>
+                  <p className="font-bold"><Link to="/bookings/$id" params={{ id: b.id }} className="hover:text-primary">{s.name}</Link></p>
+                  <p className="text-sm text-muted-foreground">{fmtDate(s.start)} · <TrainerLink session={s} /></p>
                 </div>
                 <StatusBadge status="upcoming" />
-              </Link>
+              </article>
             ))}
           </div>
         )}
