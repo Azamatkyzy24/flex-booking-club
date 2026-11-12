@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { trainerPath, type Trainer } from "@/lib/catalog";
 import type { Session } from "@/lib/gym";
@@ -8,12 +9,15 @@ export function TrainerLink({ session }: { session: Session }) {
 }
 
 export function TrainerPortrait({ trainer, large = false }: { trainer: Trainer; large?: boolean }) {
+  const [broken, setBroken] = useState(false);
   const size = large ? "h-32 w-32 text-5xl sm:h-40 sm:w-40" : "h-20 w-20 text-2xl";
   const ring = "ring-4 ring-primary/30";
-  if (trainer.photo_url) {
-    return <img src={trainer.photo_url} alt={trainer.full_name} className={`${size} ${ring} shrink-0 rounded-full object-cover`} />;
+  if (trainer.photo_url && !broken) {
+    // object-top keeps faces in frame when a photo is not square
+    return <img src={trainer.photo_url} alt={trainer.full_name} loading="lazy" decoding="async" onError={() => setBroken(true)}
+      className={`${size} ${ring} shrink-0 rounded-full object-cover object-top`} />;
   }
-  // No photo yet: gradient avatar, a slightly different shade for every trainer.
+  // No photo (or it failed to load): gradient avatar, a slightly different shade for every trainer.
   const hue = 200 + ((trainer.trainer_id * 47) % 120);
   const initials = trainer.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2);
   return (

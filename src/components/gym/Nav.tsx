@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useGym } from "@/lib/store";
-import { Home, Dumbbell, CalendarCheck, Wallet, User, Users, Newspaper } from "lucide-react";
+import { useTrainerId } from "@/lib/trainer";
+import { Home, Dumbbell, CalendarCheck, Wallet, User, Users, Newspaper, LayoutDashboard } from "lucide-react";
 
-const items = [
+const baseItems = [
   { to: "/", label: "Home", icon: Home },
   { to: "/workouts", label: "Workouts", icon: Dumbbell },
   { to: "/trainers", label: "Trainers", icon: Users },
@@ -11,9 +12,12 @@ const items = [
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
+const trainerItem = { to: "/trainer", label: "Trainer", icon: LayoutDashboard } as const;
 
 export function Nav() {
   const g = useGym();
+  const { trainerId } = useTrainerId();
+  const items = trainerId ? [...baseItems, trainerItem] : baseItems;
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
@@ -40,7 +44,8 @@ export function Nav() {
           )}
         </div>
       </header>
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-7 border-t border-border bg-card lg:hidden">
+      <nav style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        className="fixed inset-x-0 bottom-0 z-20 grid border-t border-border bg-card lg:hidden">
         {items.map((i) => (
           <Link key={i.to} to={i.to} activeOptions={{ exact: i.to === "/" }}
             className="flex min-w-0 flex-col items-center gap-1 py-2 text-[10px] font-semibold text-muted-foreground"

@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as TrainerRouteImport } from './routes/trainer'
 import { Route as TrainersRouteImport } from './routes/trainers'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as WorkoutsRouteImport } from './routes/workouts'
@@ -54,6 +55,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrainerRoute = TrainerRouteImport.update({
+  id: '/trainer',
+  path: '/trainer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrainersRoute = TrainersRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/news': typeof NewsRouteWithChildren
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/trainer': typeof TrainerRoute
   '/trainers': typeof TrainersRouteWithChildren
   '/wallet': typeof WalletRoute
   '/workouts': typeof WorkoutsRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/trainer': typeof TrainerRoute
   '/wallet': typeof WalletRoute
   '/workouts': typeof WorkoutsRoute
   '/book/$id': typeof BookIdRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/news': typeof NewsRouteWithChildren
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/trainer': typeof TrainerRoute
   '/trainers': typeof TrainersRouteWithChildren
   '/wallet': typeof WalletRoute
   '/workouts': typeof WorkoutsRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/profile'
     | '/register'
+    | '/trainer'
     | '/trainers'
     | '/wallet'
     | '/workouts'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/register'
+    | '/trainer'
     | '/wallet'
     | '/workouts'
     | '/book/$id'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/profile'
     | '/register'
+    | '/trainer'
     | '/trainers'
     | '/wallet'
     | '/workouts'
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   NewsRoute: typeof NewsRouteWithChildren
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
+  TrainerRoute: typeof TrainerRoute
   TrainersRoute: typeof TrainersRouteWithChildren
   WalletRoute: typeof WalletRoute
   WorkoutsRoute: typeof WorkoutsRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trainer': {
+      id: '/trainer'
+      path: '/trainer'
+      fullPath: '/trainer'
+      preLoaderRoute: typeof TrainerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trainers': {
@@ -380,6 +400,7 @@ const rootRouteChildren: RootRouteChildren = {
   NewsRoute: NewsRouteWithChildren,
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
+  TrainerRoute: TrainerRoute,
   TrainersRoute: TrainersRouteWithChildren,
   WalletRoute: WalletRoute,
   WorkoutsRoute: WorkoutsRoute,

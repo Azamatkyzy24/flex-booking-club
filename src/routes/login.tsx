@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { signIn } from "@/lib/store";
+import { fetchTrainerId } from "@/lib/trainer";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [
@@ -32,7 +33,9 @@ function Login() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      navigate({ to: "/", replace: true });
+      // Trainers land on their dashboard, everyone else on Home.
+      const trainerId = await fetchTrainerId();
+      navigate({ to: trainerId ? "/trainer" : "/", replace: true });
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : "Login failed. Check your email and password.");
     } finally {
