@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useGym } from "@/lib/store";
 import { useTrainerId } from "@/lib/trainer";
+import { NotificationBanner } from "@/components/gym/NotificationBanner";
 import { Home, Dumbbell, CalendarCheck, Wallet, User, Users, Newspaper, LayoutDashboard } from "lucide-react";
 
 const baseItems = [
@@ -44,6 +45,7 @@ export function Nav() {
           )}
         </div>
       </header>
+      <NotificationBanner />
       <nav style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
         className="fixed inset-x-0 bottom-0 z-20 grid border-t border-border bg-card lg:hidden">
         {items.map((i) => (

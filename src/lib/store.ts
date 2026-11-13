@@ -39,13 +39,18 @@ export async function refreshGym() {
   const reviews: Review[] = (rv.error ? [] : rv.data).map((x) => ({
     bookingId: String(x.booking_id), rating: x.rating, comment: x.comment, createdAt: x.created_at,
   }));
-  const sessions: Session[] = w.data.map((x) => ({
+  // A workout cancelled by its trainer is hidden from everyone except members who had booked it,
+  // so their cancelled booking can still show the class name and time.
+  const mine = new Set(b.data.filter((x) => x.member_id === memberId).map((x) => x.workout_id));
+  const isCancelled = (x: unknown) => !!(x as { cancelled_at?: string | null }).cancelled_at;
+  const sessions: Session[] = w.data.filter((x) => !isCancelled(x) || mine.has(x.workout_id)).map((x) => ({
     id: String(x.workout_id), name: x.title, type: (x.category ?? "Group Class") as Session["type"],
     trainer: x.trainers?.full_name ?? "TBA", trainerId: x.trainer_id, trainerSlug: x.trainers?.slug, start: x.start_time, duration: x.duration_minutes,
     price: Number(x.price), depositPct: Math.round((Number(x.deposit_amount) / Number(x.price)) * 100),
     deposit: Number(x.deposit_amount), capacity: x.capacity,
     booked: counts.get(x.workout_id) ?? 0,
     description: x.description ?? null,
+    cancelled: isCancelled(x),
     rating: ratings.get(x.workout_id)?.avg ?? null, reviewCount: ratings.get(x.workout_id)?.count ?? 0,
   }));
   const bookings: Booking[] = b.data.filter((x) => x.member_id === memberId)

@@ -14,7 +14,8 @@ export function SessionCard({ s, booked, waitlisted, bookLabel = "Book" }: { s: 
   const [busy, setBusy] = useState(false);
   const left = Math.max(0, spotsLeft(s));
   const full = left <= 0;
-  const spotOpened = waitlisted && !full && !booked;
+  const cancelled = !!s.cancelled;
+  const spotOpened = waitlisted && !full && !booked && !cancelled;
   const join = async () => {
     setBusy(true);
     try { await joinWaitlist(s.id); toast.success("You're on the waitlist."); }
@@ -22,12 +23,14 @@ export function SessionCard({ s, booked, waitlisted, bookLabel = "Book" }: { s: 
     finally { setBusy(false); }
   };
   return (
-    <div className="flex flex-col rounded-2xl border border-border bg-card p-5">
+    <div className={`flex flex-col rounded-2xl border border-border bg-card p-5 ${cancelled ? "opacity-70" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <Badge variant={s.type === "Group Class" ? "secondary" : "default"}>{s.type}</Badge>
-        <span className={`text-xs font-bold ${full ? "text-destructive" : "text-primary"}`}>
-          {left} spot{left === 1 ? "" : "s"} left
-        </span>
+        {cancelled
+          ? <span className="text-xs font-bold text-destructive">Cancelled</span>
+          : <span className={`text-xs font-bold ${full ? "text-destructive" : "text-primary"}`}>
+            {left} spot{left === 1 ? "" : "s"} left
+          </span>}
       </div>
       <h3 className="mt-3 text-lg font-bold">{s.name}</h3>
       {s.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{s.description}</p>}
@@ -49,7 +52,9 @@ export function SessionCard({ s, booked, waitlisted, bookLabel = "Book" }: { s: 
           <p className="text-2xl font-bold">{money(s.price)}</p>
           <p className="text-xs text-muted-foreground">Deposit {money(depositOf(s))}</p>
         </div>
-        {booked ? (
+        {cancelled ? (
+          <Button disabled variant="secondary">Cancelled</Button>
+        ) : booked ? (
           <Button disabled variant="secondary">Booked</Button>
         ) : full ? (
           waitlisted

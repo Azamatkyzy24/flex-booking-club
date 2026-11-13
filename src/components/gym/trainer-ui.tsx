@@ -16,7 +16,7 @@ export function specialtyIcon(specialty?: string | null): LucideIcon {
 /** Future workouts of one trainer, earliest first. */
 export const upcomingOf = (sessions: Session[], trainerId: number) =>
   sessions
-    .filter((s) => s.trainerId === trainerId && new Date(s.start).getTime() > Date.now())
+    .filter((s) => s.trainerId === trainerId && !s.cancelled && new Date(s.start).getTime() > Date.now())
     .sort((a, b) => a.start.localeCompare(b.start));
 
 /** Average rating over all of the trainer's reviewed courses (each course counted once). */

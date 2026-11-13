@@ -2,7 +2,11 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, ChevronDown, ChevronUp, Clock, ExternalLink, ListChecks, Plus, Star, Users } from "lucide-react";
+import { Ban, CalendarDays, ChevronDown, ChevronUp, Clock, ExternalLink, ListChecks, Plus, Star, Users } from "lucide-react";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, fmtDate } from "@/components/gym/format";
@@ -13,7 +17,7 @@ import { trainersQuery, trainerPath, type Trainer } from "@/lib/catalog";
 import { money, spotsLeft, type Session } from "@/lib/gym";
 import { useGym } from "@/lib/store";
 import {
-  createTrainerWorkout, rosterQuery, trainerReviewsQuery, trainerStatsQuery, updateTrainerProfile,
+  cancelTrainerWorkout, createTrainerWorkout, rosterQuery, trainerReviewsQuery, trainerStatsQuery, updateTrainerProfile,
   useTrainerId, type WorkoutStat,
 } from "@/lib/trainer";
 
@@ -47,7 +51,7 @@ function Dashboard({ trainerId }: { trainerId: number }) {
   if (!g || !t) return <Loading />;
 
   const now = Date.now();
-  const mine = g.sessions.filter((s) => s.trainerId === trainerId);
+  const mine = g.sessions.filter((s) => s.trainerId === trainerId && !s.cancelled);
   const upcoming = mine.filter((s) => new Date(s.start).getTime() > now).sort((a, b) => a.start.localeCompare(b.start));
   const past = mine.filter((s) => new Date(s.start).getTime() <= now).sort((a, b) => b.start.localeCompare(a.start));
   const statOf = (id: string) => stats.data?.find((x) => x.workoutId === id);
@@ -145,7 +149,7 @@ function Schedule({ upcoming, past, statOf, trainerId }: {
   </div>;
 }
 
-function ClassRow({ s, stat, defaultOpen = false, bare = false }: { s: Session; stat?: WorkoutStat; defaultOpen?: boolean; bare?: boolean }) {
+function ClassRow({ s, stat, defaultOpen = false, bare = false }: { s: Session; stat?: WorkoutStat | undefined; defaultOpen?: boolean; bare?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   const booked = stat?.booked ?? s.booked;
   const pct = Math.min(100, Math.round((booked / Math.max(1, s.capacity)) * 100));
@@ -170,9 +174,12 @@ function ClassRow({ s, stat, defaultOpen = false, bare = false }: { s: Session; 
         <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
       </div>
     </div>
-    <Button variant="ghost" size="sm" className="mt-2 -ml-3" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-      {open ? "Hide" : "Show"} attendees {open ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
-    </Button>
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <Button variant="ghost" size="sm" className="-ml-3" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        {open ? "Hide" : "Show"} attendees {open ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+      </Button>
+      {new Date(s.start).getTime() > Date.now() && <CancelWorkoutButton s={s} stat={stat} />}
+    </div>
     {open && <Roster workoutId={s.id} />}
   </>;
   return bare ? <div className="mt-2">{body}</div> : <div className="rounded-2xl border border-border bg-card p-4">{body}</div>;
@@ -189,6 +196,62 @@ function Roster({ workoutId }: { workoutId: string }) {
       <span className="text-xs text-muted-foreground">booked {fmtDate(r.bookedAt)}</span>
     </li>)}
   </ul>;
+}
+
+function CancelWorkoutButton({ s, stat }: { s: Session; stat?: WorkoutStat | undefined }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const booked = stat?.booked ?? s.booked;
+  const waiting = stat?.waitlisted ?? 0;
+  const deposits = stat?.deposits ?? 0;
+
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      const r = await cancelTrainerWorkout(s.id, reason.trim());
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["trainer-stats"] }),
+        qc.invalidateQueries({ queryKey: ["trainer-roster"] }),
+      ]);
+      toast.success(r.refunded
+        ? `Workout cancelled. ${r.refunded} member${r.refunded === 1 ? "" : "s"} refunded ${money(r.total)} in total.`
+        : "Workout cancelled.");
+      setOpen(false);
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  return <AlertDialog open={open} onOpenChange={(v) => { if (busy) return; setOpen(v); if (!v) setReason(""); }}>
+    <AlertDialogTrigger asChild>
+      <Button variant="outline" size="sm" className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive">
+        <Ban className="h-4 w-4" aria-hidden /> Cancel workout
+      </Button>
+    </AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Cancel “{s.name}”?</AlertDialogTitle>
+        <AlertDialogDescription>
+          {fmtDate(s.start)}.{" "}
+          {booked
+            ? `${booked} member${booked === 1 ? " is" : "s are"} booked. Their bookings will be cancelled automatically and each deposit refunded to their wallet (${money(deposits)} in total).`
+            : "Nobody has booked yet."}
+          {waiting > 0 && ` ${waiting} ${waiting === 1 ? "person" : "people"} on the waitlist will be removed.`}
+          {" "}Everyone affected sees a message at the top of the site. This cannot be undone.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <div>
+        <label htmlFor={`cancel-reason-${s.id}`} className="mb-1 block text-sm font-semibold">Reason (optional, shown to members)</label>
+        <textarea id={`cancel-reason-${s.id}`} rows={2} maxLength={200} className={inputCls} value={reason}
+          onChange={(e) => setReason(e.target.value)} placeholder="For example: the instructor is ill" />
+      </div>
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={busy}>Keep workout</AlertDialogCancel>
+        <Button variant="destructive" disabled={busy} onClick={confirm}>{busy ? "Cancelling…" : "Yes, cancel workout"}</Button>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>;
 }
 
 function NewWorkoutForm({ trainerId, onDone }: { trainerId: number; onDone: () => void }) {
