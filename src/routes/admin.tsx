@@ -4,29 +4,31 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, fmtDate } from "@/components/gym/format";
 import { supabase } from "@/integrations/supabase/client";
-
+import { refreshGym } from "@/lib/store";
+ 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — GymFlow" }] }),
   component: AdminPage,
 });
-
+ 
 // The generated Supabase types don't know about the new admin_* functions yet.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Row = Record<string, any>;
-
+type Row = any;
+ 
 function workoutLabel(w: Row | null | undefined, id: number) {
   return w?.title ?? w?.name ?? w?.class_name ?? `Workout #${id}`;
 }
-
+ 
 function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [bookings, setBookings] = useState<Row[]>([]);
   const [waitlist, setWaitlist] = useState<Row[]>([]);
   const [log, setLog] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
-
+  const [showForm, setShowForm] = useState(false);
+ 
   const load = useCallback(async () => {
     const [b, w, l] = await Promise.all([
       db
@@ -44,7 +46,7 @@ function AdminPage() {
     if (w.error) toast.error(w.error.message); else setWaitlist(w.data ?? []);
     if (l.error) toast.error(l.error.message); else setLog(l.data ?? []);
   }, []);
-
+ 
   useEffect(() => {
     (async () => {
       const { data, error } = await db.rpc("is_admin");
@@ -53,7 +55,7 @@ function AdminPage() {
       if (ok) await load();
     })();
   }, [load]);
-
+ 
   const run = async (call: () => Promise<{ error: { message: string } | null }>, okMsg: string) => {
     setBusy(true);
     try {
@@ -65,7 +67,7 @@ function AdminPage() {
       setBusy(false);
     }
   };
-
+ 
   if (allowed === null) return <Loading />;
   if (!allowed) {
     return (
@@ -74,7 +76,7 @@ function AdminPage() {
       </Page>
     );
   }
-
+ 
   // Group the waitlist by workout; position = order of created_at
   const groups = new Map<number, Row[]>();
   for (const w of waitlist) {
@@ -82,16 +84,24 @@ function AdminPage() {
     list.push(w);
     groups.set(w.workout_id, list);
   }
-
+ 
   return (
     <Page title="Admin">
+      <div className="mb-8">
+        {showForm ? (
+          <NewSessionForm onDone={() => setShowForm(false)} />
+        ) : (
+          <Button onClick={() => setShowForm(true)}>+ Create session</Button>
+        )}
+      </div>
+ 
       <h2 className="mb-3 text-xl font-bold">Waitlist</h2>
       {groups.size === 0 && <p className="mb-8 text-muted-foreground">Waitlist is empty.</p>}
       <div className="mb-8 space-y-4">
         {[...groups.entries()].map(([workoutId, entries]) => (
           <div key={workoutId} className="rounded-2xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border p-4">
-              <p className="font-semibold">{workoutLabel(entries[0].workouts, workoutId)}</p>
+              <p className="font-semibold">{workoutLabel(entries[0]?.workouts, workoutId)}</p>
               <Button
                 size="sm"
                 disabled={busy}
@@ -135,7 +145,7 @@ function AdminPage() {
           </div>
         ))}
       </div>
-
+ 
       <h2 className="mb-3 text-xl font-bold">Upcoming bookings</h2>
       {bookings.length === 0 && <p className="mb-8 text-muted-foreground">No upcoming bookings.</p>}
       <div className="mb-8 divide-y divide-border rounded-2xl border border-border bg-card">
@@ -165,7 +175,7 @@ function AdminPage() {
           </div>
         ))}
       </div>
-
+ 
       <h2 className="mb-3 text-xl font-bold">Recent activity</h2>
       <div className="divide-y divide-border rounded-2xl border border-border bg-card">
         {log.map((l) => (
@@ -180,3 +190,101 @@ function AdminPage() {
     </Page>
   );
 }
+ 
+const inputCls =
+  "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none";
+ 
+function Field({ label, id, wide, children }: { label: string; id: string; wide?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={wide ? "sm:col-span-2" : ""}>
+      <label htmlFor={id} className="mb-1 block text-sm font-semibold">{label}</label>
+      {children}
+    </div>
+  );
+}
+ 
+function NewSessionForm({ onDone }: { onDone: () => void }) {
+  const [trainers, setTrainers] = useState<Row[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [f, setF] = useState({
+    trainerId: "", title: "", category: "Group Class", start: "",
+    duration: "60", capacity: "1", price: "10", deposit: "5", description: "",
+  });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setF((p) => ({ ...p, [k]: e.target.value }));
+ 
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await db.from("trainers").select("trainer_id, full_name").order("full_name");
+      if (error) { toast.error(error.message); return; }
+      setTrainers(data ?? []);
+      if (data?.length) setF((p) => ({ ...p, trainerId: String(data[0].trainer_id) }));
+    })();
+  }, []);
+ 
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!f.start) { toast.error("Pick a start date and time."); return; }
+    setBusy(true);
+    try {
+      const { error } = await db.rpc("admin_create_workout", {
+        p_trainer_id: Number(f.trainerId), p_title: f.title, p_category: f.category,
+        p_start: new Date(f.start).toISOString(), p_duration: Number(f.duration),
+        p_capacity: Number(f.capacity), p_price: Number(f.price), p_deposit: Number(f.deposit),
+        p_description: f.description || null,
+      });
+      if (error) throw new Error(error.message);
+      await refreshGym(); // so the new session shows up on the Workouts page
+      toast.success("Session created.");
+      onDone();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+ 
+  return (
+    <form onSubmit={submit} className="grid gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
+      <Field label="Title" id="s-title">
+        <input id="s-title" className={inputCls} value={f.title} onChange={set("title")} placeholder="Morning HIIT" required />
+      </Field>
+      <Field label="Trainer" id="s-trainer">
+        <select id="s-trainer" className={inputCls} value={f.trainerId} onChange={set("trainerId")} required>
+          {trainers.map((t) => (
+            <option key={t.trainer_id} value={t.trainer_id}>{t.full_name}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Type" id="s-cat">
+        <select id="s-cat" className={inputCls} value={f.category} onChange={set("category")}>
+          <option>Group Class</option>
+          <option>Personal Training</option>
+        </select>
+      </Field>
+      <Field label="Start" id="s-start">
+        <input id="s-start" type="datetime-local" className={inputCls} value={f.start} onChange={set("start")} required />
+      </Field>
+      <Field label="Duration (minutes)" id="s-dur">
+        <input id="s-dur" type="number" min={15} max={240} className={inputCls} value={f.duration} onChange={set("duration")} />
+      </Field>
+      <Field label="Capacity (spots)" id="s-cap">
+        <input id="s-cap" type="number" min={1} max={50} className={inputCls} value={f.capacity} onChange={set("capacity")} />
+      </Field>
+      <Field label="Price ($)" id="s-price">
+        <input id="s-price" type="number" min={1} step="0.5" className={inputCls} value={f.price} onChange={set("price")} />
+      </Field>
+      <Field label="Deposit ($)" id="s-dep">
+        <input id="s-dep" type="number" min={0} step="0.5" className={inputCls} value={f.deposit} onChange={set("deposit")} />
+      </Field>
+      <Field label="Description (optional)" id="s-desc" wide>
+        <textarea id="s-desc" rows={2} maxLength={500} className={inputCls} value={f.description} onChange={set("description")} />
+      </Field>
+      <div className="flex gap-2 sm:col-span-2">
+        <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Create session"}</Button>
+        <Button type="button" variant="ghost" onClick={onDone}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
+ 

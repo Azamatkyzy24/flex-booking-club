@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { useGym } from "@/lib/store";
 import { useTrainerId } from "@/lib/trainer";
+import { useIsAdmin } from "@/lib/useIsAdmin";
 import { NotificationBanner } from "@/components/gym/NotificationBanner";
-import { Home, Dumbbell, CalendarCheck, Wallet, User, Users, Newspaper, LayoutDashboard } from "lucide-react";
-
+import { Home, Dumbbell, CalendarCheck, Wallet, User, Users, Newspaper, LayoutDashboard, ShieldCheck } from "lucide-react";
+ 
 const baseItems = [
   { to: "/", label: "Home", icon: Home },
   { to: "/workouts", label: "Workouts", icon: Dumbbell },
@@ -14,11 +15,13 @@ const baseItems = [
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
 const trainerItem = { to: "/trainer", label: "Trainer", icon: LayoutDashboard } as const;
-
+const adminItem = { to: "/admin", label: "Admin", icon: ShieldCheck } as const;
+ 
 export function Nav() {
   const g = useGym();
   const { trainerId } = useTrainerId();
-  const items = trainerId ? [...baseItems, trainerItem] : baseItems;
+  const { isAdmin } = useIsAdmin();
+  const items = [...baseItems, ...(trainerId ? [trainerItem] : []), ...(isAdmin ? [adminItem] : [])];
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
@@ -60,3 +63,4 @@ export function Nav() {
     </>
   );
 }
+ 

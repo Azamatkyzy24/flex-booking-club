@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { signIn } from "@/lib/store";
 import { fetchTrainerId } from "@/lib/trainer";
-
+import { fetchIsAdmin } from "@/lib/useIsAdmin";
+ 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [
     { title: "Log in — GymFlow" },
@@ -15,17 +16,17 @@ export const Route = createFileRoute("/login")({
   ] }),
   component: Login,
 });
-
+ 
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none";
-
+ 
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
+ 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -33,7 +34,11 @@ function Login() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      // Trainers land on their dashboard, everyone else on Home.
+      // Admins land on the admin page, trainers on their dashboard, everyone else on Home.
+      if (await fetchIsAdmin()) {
+        navigate({ to: "/admin", replace: true });
+        return;
+      }
       const trainerId = await fetchTrainerId();
       navigate({ to: trainerId ? "/trainer" : "/", replace: true });
     } catch (err) {
@@ -42,7 +47,7 @@ function Login() {
       setBusy(false);
     }
   };
-
+ 
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-4 py-12">
       <p className="font-display text-2xl font-bold">Gym<span className="text-primary">Flow</span></p>
