@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loading, Page, Row, fmtDate } from "@/components/gym/format";
 import { bookSession, refreshGym, useGym } from "@/lib/store";
-import { depositOf, money, spotsLeft, CANCEL_HOURS } from "@/lib/gym";
+import { depositOf, membershipFor, money, spotsLeft, visitsLeft, CANCEL_HOURS } from "@/lib/gym";
 import { TrainerLink } from "@/components/gym/TrainerLink";
 import { CourseReviews } from "@/components/gym/CourseReviews";
 import { RatingValue } from "@/components/gym/Stars";
@@ -28,22 +28,29 @@ function Book() {
   const nav = useNavigate();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [choice, setChoice] = useState<"single" | "membership" | null>(null);
   if (!g) return <Loading />;
   const s = g.sessions.find((x) => x.id === id);
   if (!s) return <Page title="Session not found"><Link to="/workouts" className="text-primary">Back to workouts</Link></Page>;
-  const dep = depositOf(s);
+  const mem = membershipFor(g, s);
+  // a member who has a usable membership gets it pre-selected; otherwise only the single visit exists
+  const useMem = mem.ok && choice !== "single";
+  const dep = useMem ? 0 : depositOf(s);
   const insufficient = g.balance < dep;
 
   const confirm = async () => {
     if (busy) return;
     setBusy(true); setError("");
     try {
-      const bookingId = await bookSession(s.id);
+      const bookingId = await bookSession(s.id, useMem);
       toast.success("Booking confirmed! Your QR code is ready.");
       nav({ to: "/bookings/$id", params: { id: String(bookingId) } });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Booking failed.";
-      if (msg.includes("SESSION_FULL")) {
+      if (msg.includes("NO_VISITS_LEFT") || msg.includes("NO_ACTIVE_MEMBERSHIP") || msg.includes("MEMBERSHIP_")) {
+        setError("Your membership cannot be used for this class. Choose a single visit instead.");
+        void refreshGym();
+      } else if (msg.includes("SESSION_FULL")) {
         setError("Sorry, this class just filled up");
         void refreshGym(); // pull the fresh spots count
       } else if (msg.includes("INSUFFICIENT_BALANCE")) {
@@ -69,10 +76,33 @@ function Book() {
           {s.rating != null && !!s.reviewCount && <Row k="Rating" v={<RatingValue rating={s.rating} count={s.reviewCount} />} />}
         </div>
         <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="mb-2 font-bold">How do you want to attend?</h3>
+          <div className="mb-4 grid gap-2" role="radiogroup" aria-label="Visit type">
+            <label className={`cursor-pointer rounded-xl border p-3 ${!useMem ? "border-primary bg-primary/10" : "border-border"}`}>
+              <input type="radio" name="visit" className="sr-only" checked={!useMem} onChange={() => setChoice("single")} />
+              <span className="font-semibold">Single visit</span>
+              <span className="block text-sm text-muted-foreground">Pay a {money(depositOf(s))} deposit now, the rest at reception.</span>
+            </label>
+            <label className={`rounded-xl border p-3 ${mem.ok ? "cursor-pointer" : "opacity-60"} ${useMem ? "border-primary bg-primary/10" : "border-border"}`}>
+              <input type="radio" name="visit" className="sr-only" disabled={!mem.ok} checked={useMem} onChange={() => setChoice("membership")} />
+              <span className="font-semibold">Use my membership</span>
+              <span className="block text-sm text-muted-foreground">
+                {mem.ok
+                  ? `${mem.membership.planName}: ${visitsLeft(g, mem.membership)} of ${mem.membership.visits} visits left. Nothing to pay.`
+                  : <>{mem.reason}{s.type === "Group Class" && <> <Link to="/membership" className="font-semibold text-primary underline">See plans</Link></>}</>}
+              </span>
+            </label>
+          </div>
           <h3 className="mb-2 font-bold">Payment breakdown</h3>
-          <Row k="Total price" v={money(s.price)} />
-          <Row k={`Deposit (${s.depositPct}%) — paid now`} v={money(dep)} strong />
-          <Row k="Remaining — pay at reception" v={money(s.price - dep)} />
+          <Row k="Total price" v={useMem ? "Included in membership" : money(s.price)} />
+          {useMem ? (
+            <Row k="Paid now" v={money(0)} strong />
+          ) : (
+            <>
+              <Row k={`Deposit (${s.depositPct}%) — paid now`} v={money(dep)} strong />
+              <Row k="Remaining — pay at reception" v={money(s.price - dep)} />
+            </>
+          )}
           <div className="my-3 border-t border-border" />
           <Row k="Wallet balance" v={money(g.balance)} />
           <Row k="Balance after booking" v={insufficient ? "—" : money(g.balance - dep)} />
@@ -87,11 +117,13 @@ function Book() {
             onClick={confirm}
             disabled={busy || insufficient}
           >
-            {insufficient ? "Top up your wallet to book" : `Pay ${money(dep)} deposit & confirm`}
+            {insufficient ? "Top up your wallet to book" : useMem ? "Confirm with membership" : `Pay ${money(dep)} deposit & confirm`}
           </Button>
 
           <p className="mt-3 text-xs text-muted-foreground">
-            Free cancellation up to {CANCEL_HOURS} hours before start — deposit refunded to your wallet. Demo payment only.
+            {useMem
+              ? "Cancel any time before the class starts and the visit returns to your membership."
+              : <>Free cancellation up to {CANCEL_HOURS} hours before start — deposit refunded to your wallet. Demo payment only.</>}
           </p>
         </div>
       </div>

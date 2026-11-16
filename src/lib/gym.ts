@@ -11,16 +11,23 @@ export interface Session {
   cancelled?: boolean;
 }
 export type BookingStatus = "upcoming" | "completed" | "cancelled";
+/** "single" = разовое посещение (deposit now, rest at reception); "membership" = a visit from a membership (абонемент). */
+export type VisitType = "single" | "membership";
 export interface Booking {
   id: string; sessionId: string; cancelled: boolean; total: number;
   deposit: number; createdAt: string; code: string;
+  visitType?: VisitType; membershipId?: string | null;
 }
-export interface Tx { id: string; type: "topup" | "deposit" | "refund"; amount: number; date: string; label: string }
+export interface Tx { id: string; type: "topup" | "deposit" | "refund" | "membership"; amount: number; date: string; label: string }
+/** A plan the gym sells: `visits` group-class visits within `days` days for `price`. */
+export interface Plan { id: string; name: string; visits: number; days: number; price: number }
+/** A membership the member bought. Visits used are counted from bookings, never stored. */
+export interface Membership { id: string; planName: string; visits: number; price: number; startsAt: string; expiresAt: string }
 /** The signed-in member's own review of a finished booking. */
 export interface Review { bookingId: string; rating: number; comment: string | null; createdAt: string }
 /** A review of a course written by any member (first name only). */
 export interface CourseReview { id: string; rating: number; comment: string | null; createdAt: string; reviewer: string }
-export interface GymState { name: string; email: string; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[]; waitlist?: string[]; reviews?: Review[] }
+export interface GymState { name: string; email: string; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[]; waitlist?: string[]; reviews?: Review[]; plans?: Plan[]; memberships?: Membership[] }
 
 /** Cancellation allowed until this many hours before start; deposit refunded in full. */
 export const CANCEL_HOURS = 12;
@@ -33,8 +40,16 @@ export function statusOf(b: Booking, s: Session, now = Date.now()): BookingStatu
   if (b.cancelled) return "cancelled";
   return new Date(s.start).getTime() + s.duration * 60000 < now ? "completed" : "upcoming";
 }
+/** true = more than CANCEL_HOURS before start, so the deposit is refunded. */
 export const canCancel = (b: Booking, s: Session, now = Date.now()) =>
   !b.cancelled && new Date(s.start).getTime() - now > CANCEL_HOURS * 3600000;
+
+// Restored from the late-cancellation work (commit 90af289), which a later commit removed by accident
+// while src/lib/late-cancel.test.ts still needs it.
+export const isRefundable = (b: Booking, s: Session, now = Date.now()) => canCancel(b, s, now);
+/** A booking can be cancelled at any time before the session starts. */
+export const canCancelAnytime = (b: Booking, s: Session, now = Date.now()) =>
+  !b.cancelled && new Date(s.start).getTime() > now;
 
 /** Reviews are limited to this many characters (same limit as the database). */
 export const REVIEW_MAX_LENGTH = 500;
@@ -44,43 +59,78 @@ export const reviewOf = (g: Pick<GymState, "reviews">, bookingId: string) => g.r
 export const canReview = (b: Booking, s: Session, reviewed: boolean, now = Date.now()) =>
   !b.cancelled && !reviewed && hasEnded(s, now);
 
+/** Visits of a membership that are in use: every booking made with it that is not cancelled. */
+export const visitsUsed = (g: Pick<GymState, "bookings">, membershipId: string) =>
+  g.bookings.filter((b) => b.membershipId === membershipId && !b.cancelled).length;
+export const visitsLeft = (g: Pick<GymState, "bookings">, m: Membership) => Math.max(0, m.visits - visitsUsed(g, m.id));
+/** The membership that is valid right now (a member can own only one at a time), or null. */
+export const activeMembership = (g: Pick<GymState, "memberships">, now = Date.now()): Membership | null =>
+  g.memberships?.find((m) => new Date(m.startsAt).getTime() <= now && new Date(m.expiresAt).getTime() > now) ?? null;
+export type MembershipCheck = { ok: true; membership: Membership } | { ok: false; reason: string };
+/** Can this session be booked with the member's membership? Mirrors the checks in the database function book_session. */
+export function membershipFor(g: GymState, s: Session, now = Date.now()): MembershipCheck {
+  if (s.type !== "Group Class") return { ok: false, reason: "Memberships cover group classes only. Personal training is a single visit." };
+  const m = activeMembership(g, now);
+  if (!m) return { ok: false, reason: "You have no active membership." };
+  if (new Date(s.start).getTime() > new Date(m.expiresAt).getTime()) return { ok: false, reason: "Your membership expires before this class." };
+  if (visitsLeft(g, m) <= 0) return { ok: false, reason: "No visits left on your membership." };
+  return { ok: true, membership: m };
+}
+
 const uid = (p: string) => `${p}-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1296).toString(36).toUpperCase()}`;
 
 export type BookResult = { ok: true; state: GymState; bookingId: string } | { ok: false; error: string };
 
-export function bookSession(state: GymState, sessionId: string, now = Date.now()): BookResult {
+export function bookSession(state: GymState, sessionId: string, now = Date.now(), useMembership = false): BookResult {
   const s = state.sessions.find((x) => x.id === sessionId);
   if (!s) return { ok: false, error: "Session not found." };
   if (new Date(s.start).getTime() <= now) return { ok: false, error: "This session has already started." };
   if (state.bookings.some((b) => b.sessionId === s.id && !b.cancelled))
     return { ok: false, error: "You have already booked this session." };
   if (spotsLeft(s) <= 0) return { ok: false, error: "This session is full." };
-  const deposit = depositOf(s);
-  if (state.balance < deposit) return { ok: false, error: "Insufficient funds. Please top up your wallet." };
   const id = uid("BK");
   const date = new Date(now).toISOString();
+  if (useMembership) {
+    const chk = membershipFor(state, s, now);
+    if (!chk.ok) return { ok: false, error: chk.reason };
+    return {
+      ok: true, bookingId: id,
+      state: {
+        ...state,
+        sessions: state.sessions.map((x) => (x.id === s.id ? { ...x, booked: x.booked + 1 } : x)),
+        bookings: [{ id, sessionId: s.id, cancelled: false, total: s.price, deposit: 0, createdAt: date, code: `GYMFLOW:${id}:${s.id}`, visitType: "membership", membershipId: chk.membership.id }, ...state.bookings],
+      },
+    };
+  }
+  const deposit = depositOf(s);
+  if (state.balance < deposit) return { ok: false, error: "Insufficient funds. Please top up your wallet." };
   return {
     ok: true, bookingId: id,
     state: {
       ...state,
       balance: Math.round((state.balance - deposit) * 100) / 100,
       sessions: state.sessions.map((x) => (x.id === s.id ? { ...x, booked: x.booked + 1 } : x)),
-      bookings: [{ id, sessionId: s.id, cancelled: false, total: s.price, deposit, createdAt: date, code: `GYMFLOW:${id}:${s.id}` }, ...state.bookings],
+      bookings: [{ id, sessionId: s.id, cancelled: false, total: s.price, deposit, createdAt: date, code: `GYMFLOW:${id}:${s.id}`, visitType: "single", membershipId: null }, ...state.bookings],
       txs: [{ id: uid("TX"), type: "deposit", amount: -deposit, date, label: `Deposit · ${s.name}` }, ...state.txs],
     },
   };
 }
 
+/** Late cancellation (12h or less) is allowed and releases the spot, but the deposit is kept.
+ *  A membership visit has no deposit: cancelling simply gives the visit back. */
 export function cancelBooking(state: GymState, bookingId: string, now = Date.now()): GymState | null {
   const b = state.bookings.find((x) => x.id === bookingId);
   const s = b && state.sessions.find((x) => x.id === b.sessionId);
-  if (!b || !s || !canCancel(b, s, now)) return null;
+  if (!b || !s || !canCancelAnytime(b, s, now)) return null;
+  const refund = isRefundable(b, s, now) && b.deposit > 0;
   return {
     ...state,
-    balance: Math.round((state.balance + b.deposit) * 100) / 100,
+    balance: refund ? Math.round((state.balance + b.deposit) * 100) / 100 : state.balance,
     sessions: state.sessions.map((x) => (x.id === s.id ? { ...x, booked: Math.max(0, x.booked - 1) } : x)),
     bookings: state.bookings.map((x) => (x.id === b.id ? { ...x, cancelled: true } : x)),
-    txs: [{ id: uid("TX"), type: "refund", amount: b.deposit, date: new Date(now).toISOString(), label: `Refund · ${s.name}` }, ...state.txs],
+    txs: refund
+      ? [{ id: uid("TX"), type: "refund", amount: b.deposit, date: new Date(now).toISOString(), label: `Refund · ${s.name}` }, ...state.txs]
+      : state.txs,
   };
 }
 

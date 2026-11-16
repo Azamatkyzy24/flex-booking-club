@@ -32,16 +32,19 @@ function Detail() {
   const review = reviewOf(g, b.id);
   // true = more than CANCEL_HOURS left, so the deposit is refunded
   const refundable = canCancel(b, s);
+  const viaMembership = b.visitType === "membership";
 
   const cancel = async () => {
     if (
-      !refundable &&
+      !viaMembership && !refundable &&
       !window.confirm(`Less than ${CANCEL_HOURS}h left: the deposit (${money(b.deposit)}) will NOT be refunded. Cancel anyway?`)
     ) return;
     try {
       await cancelBookingDb(b.id);
       toast.success(
-        refundable
+        viaMembership
+          ? "Booking cancelled. The visit was returned to your membership."
+          : refundable
           ? `Booking cancelled. ${money(b.deposit)} refunded to your wallet.`
           : "Booking cancelled. The deposit was not refunded.",
       );
@@ -68,20 +71,27 @@ function Detail() {
           <Row k="Type" v={s.type} />
           <Row k="Trainer" v={<TrainerLink session={s} />} />
           <Row k="Date & time" v={`${fmtDate(s.start)} · ${s.duration} min`} />
-          <Row k="Total price" v={money(b.total)} />
-          <Row k="Deposit paid" v={money(b.deposit)} />
-          {st !== "cancelled" && (
-            <Row k="Remaining at reception" v={money(b.total - b.deposit)} strong />
+          <Row k="Visit type" v={viaMembership ? "Membership visit" : "Single visit"} />
+          {viaMembership ? (
+            <Row k="Paid" v="Included in your membership" />
+          ) : (
+            <>
+              <Row k="Total price" v={money(b.total)} />
+              <Row k="Deposit paid" v={money(b.deposit)} />
+              {st !== "cancelled" && (
+                <Row k="Remaining at reception" v={money(b.total - b.deposit)} strong />
+              )}
+            </>
           )}
           {s.rating != null && !!s.reviewCount && <Row k="Course rating" v={<RatingValue rating={s.rating} count={s.reviewCount} />} />}
           {st === "upcoming" && (
             <>
-              {!refundable && (
+              {!viaMembership && !refundable && (
                 <p className="mt-4 text-sm text-destructive">
                   Less than {CANCEL_HOURS}h before start: you can still cancel, but the deposit ({money(b.deposit)}) will not be refunded.
                 </p>
               )}
-              <Button variant={refundable ? "destructive" : "outline"} className="mt-4" onClick={cancel}>
+              <Button variant={refundable || viaMembership ? "destructive" : "outline"} className="mt-4" onClick={cancel}>
                 Cancel booking
               </Button>
             </>

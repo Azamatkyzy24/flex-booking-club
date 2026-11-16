@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, Row } from "@/components/gym/format";
 import { signOut, useGym } from "@/lib/store";
-import { money } from "@/lib/gym";
+import { activeMembership, money, visitsLeft } from "@/lib/gym";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [
@@ -23,6 +23,7 @@ function Profile() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   if (!g) return <Loading />;
+  const ms = activeMembership(g);
 
   const logout = async () => {
     setBusy(true);
@@ -43,7 +44,7 @@ function Profile() {
         </div>
         <Row k="Name" v={g.name} />
         <Row k="Email" v={g.email} />
-        <Row k="Membership" v="Flex (pay per session)" />
+        <Row k="Membership" v={ms ? `${ms.planName} · ${visitsLeft(g, ms)} of ${ms.visits} visits left` : "Single visits (pay per session)"} />
         <Row k="Wallet" v={money(g.balance)} />
         <Row k="Bookings" v={String(g.bookings.length)} />
         <Button variant="outline" onClick={logout} disabled={busy}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookSession, cancelBooking, canReview, hasEnded, makeSeed, reviewOf } from "./gym";
+import { bookSession, cancelBooking, canReview, hasEnded, makeSeed, reviewOf, visitsLeft } from "./gym";
 
 const now = Date.now();
 
@@ -53,5 +53,54 @@ describe("reviews", () => {
     expect(reviewOf({ reviews: [review] }, "7")).toEqual(review);
     expect(reviewOf({ reviews: [review] }, "8")).toBeUndefined();
     expect(reviewOf({}, "7")).toBeUndefined();
+  });
+});
+
+describe("membership and single visit", () => {
+  const withMembership = (visits = 2) => {
+    const st = makeSeed(now);
+    return {
+      ...st,
+      memberships: [{ id: "M1", planName: "Starter", visits, price: 60, startsAt: new Date(now - 86400000).toISOString(), expiresAt: new Date(now + 30 * 86400000).toISOString() }],
+    };
+  };
+  it("a single visit still charges the deposit", () => {
+    const r = bookSession(makeSeed(now), "s5", now);
+    expect(r.ok && r.state.balance).toBe(79.5);
+    expect(r.ok && r.state.bookings[0]!.visitType).toBe("single");
+  });
+  it("a membership visit costs nothing and uses one visit", () => {
+    const st = withMembership();
+    const r = bookSession(st, "s5", now, true);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.balance).toBe(85);
+    expect(r.state.bookings[0]).toMatchObject({ visitType: "membership", membershipId: "M1", deposit: 0 });
+    expect(visitsLeft(r.state, r.state.memberships![0]!)).toBe(1);
+  });
+  it("stops when no visits are left", () => {
+    let st = withMembership(1);
+    const first = bookSession(st, "s5", now, true);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const second = bookSession(first.state, "s8", now, true);
+    expect(second).toEqual({ ok: false, error: "No visits left on your membership." });
+  });
+  it("does not cover personal training or work without a membership", () => {
+    expect(bookSession(withMembership(), "s3", now, true)).toEqual({ ok: false, error: "Memberships cover group classes only. Personal training is a single visit." });
+    expect(bookSession(makeSeed(now), "s5", now, true)).toEqual({ ok: false, error: "You have no active membership." });
+  });
+  it("cancelling a membership booking gives the visit back and refunds no money", () => {
+    const r = bookSession(withMembership(1), "s5", now, true);
+    if (!r.ok) throw new Error("booking failed");
+    const after = cancelBooking(r.state, r.bookingId, now)!;
+    expect(after.balance).toBe(85);
+    expect(after.txs.length).toBe(r.state.txs.length);
+    expect(visitsLeft(after, after.memberships![0]!)).toBe(1);
+  });
+  it("a membership that ends before the class cannot be used", () => {
+    const st = withMembership();
+    st.memberships![0]!.expiresAt = new Date(now + 3600000).toISOString();
+    expect(bookSession(st, "s5", now, true)).toEqual({ ok: false, error: "Your membership expires before this class." });
   });
 });

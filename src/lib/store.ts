@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Booking, GymState, Review, Session, Tx } from "./gym";
+import type { Booking, GymState, Membership, Plan, Review, Session, Tx, VisitType } from "./gym";
 
 let state: GymState | null = null;
 let memberId: number | null = null;
@@ -22,9 +22,10 @@ export async function refreshGym() {
   const m = await supabase.from("members").select("*").eq("user_id", uid).single();
   if (m.error) throw m.error;
   memberId = m.data.member_id;
-  const [w, b, t, q, c, rv, rs] = await Promise.all([
+  const [w, b, t, q, c, rv, rs, pl, ms] = await Promise.all([
     supabase.from("workouts").select("*, trainers(full_name, slug)").order("start_time"),
-    supabase.from("bookings").select("booking_id, member_id, workout_id, status, deposit_paid, booked_at"),
+    // "*" so the app also works before the membership columns (migration 0016) exist
+    supabase.from("bookings").select("*"),
     supabase.from("wallet_transactions").select("*").eq("member_id", memberId).order("created_at", { ascending: false }),
     supabase.from("waitlist").select("workout_id").eq("member_id", memberId),
     supabase.rpc("workout_booked_counts"),
@@ -32,6 +33,9 @@ export async function refreshGym() {
     // has not been applied yet) the rest of the app keeps working.
     supabase.from("reviews").select("booking_id, rating, comment, created_at"),
     supabase.rpc("workout_rating_summary"),
+    // Memberships are optional too: without migration 0016 these fail and the app simply hides them.
+    supabase.from("membership_plans").select("*").eq("active", true).order("price"),
+    supabase.from("member_memberships").select("*").eq("member_id", memberId).order("expires_at", { ascending: false }),
   ]);
   if (w.error || b.error || t.error || q.error || c.error) throw w.error ?? b.error ?? t.error ?? q.error ?? c.error;
   const counts = new Map(c.data.map((x) => [x.workout_id, Number(x.booked)]));
@@ -59,14 +63,22 @@ export async function refreshGym() {
       id: String(x.booking_id), sessionId: String(x.workout_id), cancelled: x.status === "cancelled",
       total: sessions.find((s) => s.id === String(x.workout_id))?.price ?? 0,
       deposit: Number(x.deposit_paid), createdAt: x.booked_at, code: `GYMFLOW:BK-${x.booking_id}:${x.workout_id}`,
+      visitType: ((x as { visit_type?: string }).visit_type ?? "single") as VisitType,
+      membershipId: (x as { membership_id?: number | null }).membership_id != null ? String((x as { membership_id?: number | null }).membership_id) : null,
     }));
+  const plans: Plan[] = (pl.error ? [] : pl.data).map((x) => ({ id: String(x.plan_id), name: x.name, visits: x.visits_limit, days: x.duration_days, price: Number(x.price) }));
+  const memberships: Membership[] = (ms.error ? [] : ms.data).map((x) => ({
+    id: String(x.membership_id), planName: x.plan_name, visits: x.visits_limit, price: Number(x.price_paid), startsAt: x.starts_at, expiresAt: x.expires_at,
+  }));
   const txs: Tx[] = t.data.map((x) => {
     const s = sessions.find((y) => y.id === String(bookings.find((z) => z.id === String(x.booking_id))?.sessionId));
     const type = x.type === "top_up" ? "topup" : (x.type as Tx["type"]);
-    const label = type === "topup" ? "Wallet top up (demo)" : `${type === "deposit" ? "Deposit" : "Refund"} · ${s?.name ?? "Booking"}`;
+    const label = type === "topup" ? "Wallet top up (demo)"
+      : type === "membership" ? "Membership purchase"
+      : `${type === "deposit" ? "Deposit" : "Refund"} · ${s?.name ?? "Booking"}`;
     return { id: String(x.transaction_id), type, amount: Number(x.amount), date: x.created_at, label };
   });
-  state = { name: m.data.full_name, email: m.data.email, balance: Number(m.data.wallet_balance), sessions, bookings, txs, waitlist: q.data.map((x) => String(x.workout_id)), reviews };
+  state = { name: m.data.full_name, email: m.data.email, balance: Number(m.data.wallet_balance), sessions, bookings, txs, waitlist: q.data.map((x) => String(x.workout_id)), reviews, plans, memberships };
   emit();
 }
 
@@ -107,8 +119,15 @@ export const bookWorkout = (workoutId: string) =>
   rpcError(supabase.rpc("book_workout", { p_member_id: memberId!, p_workout_id: Number(workoutId) }));
 /** Atomic booking: locks the workout row in the database so two simultaneous
  *  bookings cannot both take the last spot. Raises SESSION_FULL / INSUFFICIENT_BALANCE. */
-export const bookSession = (workoutId: string) =>
-  rpcError(supabase.rpc("book_session", { p_workout_id: Number(workoutId), p_member_id: memberId! }));
+export const bookSession = (workoutId: string, useMembership = false) =>
+  rpcError(supabase.rpc("book_session", {
+    p_workout_id: Number(workoutId), p_member_id: memberId!,
+    // only sent when used, so single visits still work on a database without migration 0016
+    ...(useMembership ? { p_use_membership: true } : {}),
+  }));
+/** Buys a membership from the wallet. Raises INSUFFICIENT_BALANCE / "You already have an active membership." */
+export const buyMembership = (planId: string) =>
+  rpcError(supabase.rpc("buy_membership", { p_plan_id: Number(planId) }));
 export const cancelBookingDb = (bookingId: string) =>
   rpcError(supabase.rpc("cancel_booking", { p_booking_id: Number(bookingId) }));
 export const topUpWallet = (amount: number) =>

@@ -30,7 +30,7 @@ function Bookings() {
   return (
     <Page title="My Bookings">
       <p className="mb-4 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
-        <b className="text-foreground">Cancellation policy:</b> cancel up to {CANCEL_HOURS} hours before the session for a full deposit refund. After that, the deposit is non-refundable.
+        <b className="text-foreground">Cancellation policy:</b> cancel up to {CANCEL_HOURS} hours before the session for a full deposit refund. After that, the deposit is non-refundable. A membership visit returns to your membership whenever you cancel before the class starts.
       </p>
       <div className="mb-4 flex gap-2">
         {(["upcoming", "completed", "cancelled"] as const).map((t) => (
@@ -53,9 +53,19 @@ function Bookings() {
                 <StatusBadge status={st} />
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                <div><p className="text-muted-foreground">Total</p><p className="font-bold">{money(b.total)}</p></div>
-                <div><p className="text-muted-foreground">Deposit paid</p><p className="font-bold">{money(b.deposit)}</p></div>
-                <div><p className="text-muted-foreground">Due at gym</p><p className="font-bold text-primary">{money(b.total - b.deposit)}</p></div>
+                {b.visitType === "membership" ? (
+                  <>
+                    <div><p className="text-muted-foreground">Visit</p><p className="font-bold">Membership</p></div>
+                    <div><p className="text-muted-foreground">Paid</p><p className="font-bold">{money(0)}</p></div>
+                    <div><p className="text-muted-foreground">Due at gym</p><p className="font-bold text-primary">{money(0)}</p></div>
+                  </>
+                ) : (
+                  <>
+                    <div><p className="text-muted-foreground">Total</p><p className="font-bold">{money(b.total)}</p></div>
+                    <div><p className="text-muted-foreground">Deposit paid</p><p className="font-bold">{money(b.deposit)}</p></div>
+                    <div><p className="text-muted-foreground">Due at gym</p><p className="font-bold text-primary">{money(b.total - b.deposit)}</p></div>
+                  </>
+                )}
               </div>
               <div className="mt-4 flex items-center justify-between gap-3">
                 <Link to="/bookings/$id" params={{ id: b.id }} className="text-sm font-semibold text-primary hover:underline">View booking</Link>

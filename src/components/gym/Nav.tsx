@@ -3,7 +3,7 @@ import { useGym } from "@/lib/store";
 import { useTrainerId } from "@/lib/trainer";
 import { useIsAdmin } from "@/lib/useIsAdmin";
 import { NotificationBanner } from "@/components/gym/NotificationBanner";
-import { Home, Dumbbell, CalendarCheck, Wallet, User, Users, Newspaper, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { Home, Dumbbell, CalendarCheck, Wallet, User, Users, Newspaper, LayoutDashboard, ShieldCheck, Ticket } from "lucide-react";
  
 const baseItems = [
   { to: "/", label: "Home", icon: Home },
@@ -11,6 +11,7 @@ const baseItems = [
   { to: "/trainers", label: "Trainers", icon: Users },
   { to: "/news", label: "News", icon: Newspaper },
   { to: "/bookings", label: "My Bookings", icon: CalendarCheck },
+  { to: "/membership", label: "Membership", icon: Ticket },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
