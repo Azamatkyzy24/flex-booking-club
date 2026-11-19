@@ -108,7 +108,10 @@ export type Database = {
           booking_id: number
           deposit_paid: number
           member_id: number
+          membership_id: number | null
+          refund_locked: boolean
           status: string
+          visit_type: string
           workout_id: number
         }
         Insert: {
@@ -116,7 +119,10 @@ export type Database = {
           booking_id?: never
           deposit_paid: number
           member_id: number
+          membership_id?: number | null
+          refund_locked?: boolean
           status?: string
+          visit_type?: string
           workout_id: number
         }
         Update: {
@@ -124,7 +130,10 @@ export type Database = {
           booking_id?: never
           deposit_paid?: number
           member_id?: number
+          membership_id?: number | null
+          refund_locked?: boolean
           status?: string
+          visit_type?: string
           workout_id?: number
         }
         Relationships: [
@@ -136,7 +145,119 @@ export type Database = {
             referencedColumns: ["member_id"]
           },
           {
+            foreignKeyName: "bookings_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "member_memberships"
+            referencedColumns: ["membership_id"]
+          },
+          {
             foreignKeyName: "bookings_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["workout_id"]
+          },
+        ]
+      }
+      member_memberships: {
+        Row: {
+          expires_at: string
+          member_id: number
+          membership_id: number
+          plan_id: number
+          plan_name: string
+          price_paid: number
+          starts_at: string
+          visits_limit: number
+        }
+        Insert: {
+          expires_at: string
+          member_id: number
+          membership_id?: never
+          plan_id: number
+          plan_name: string
+          price_paid: number
+          starts_at?: string
+          visits_limit: number
+        }
+        Update: {
+          expires_at?: string
+          member_id?: number
+          membership_id?: never
+          plan_id?: number
+          plan_name?: string
+          price_paid?: number
+          starts_at?: string
+          visits_limit?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_memberships_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "member_memberships_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "membership_plans"
+            referencedColumns: ["plan_id"]
+          },
+        ]
+      }
+      member_notifications: {
+        Row: {
+          created_at: string
+          kind: string
+          member_id: number
+          notification_id: number
+          read_at: string | null
+          reason: string | null
+          refund_amount: number
+          trainer_name: string | null
+          workout_id: number | null
+          workout_start: string
+          workout_title: string
+        }
+        Insert: {
+          created_at?: string
+          kind: string
+          member_id: number
+          notification_id?: never
+          read_at?: string | null
+          reason?: string | null
+          refund_amount?: number
+          trainer_name?: string | null
+          workout_id?: number | null
+          workout_start: string
+          workout_title: string
+        }
+        Update: {
+          created_at?: string
+          kind?: string
+          member_id?: number
+          notification_id?: never
+          read_at?: string | null
+          reason?: string | null
+          refund_amount?: number
+          trainer_name?: string | null
+          workout_id?: number | null
+          workout_start?: string
+          workout_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_notifications_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "member_notifications_workout_id_fkey"
             columns: ["workout_id"]
             isOneToOne: false
             referencedRelation: "workouts"
@@ -168,6 +289,33 @@ export type Database = {
           membership_type?: string | null
           user_id?: string | null
           wallet_balance?: number
+        }
+        Relationships: []
+      }
+      membership_plans: {
+        Row: {
+          active: boolean
+          duration_days: number
+          name: string
+          plan_id: number
+          price: number
+          visits_limit: number
+        }
+        Insert: {
+          active?: boolean
+          duration_days: number
+          name: string
+          plan_id?: never
+          price: number
+          visits_limit: number
+        }
+        Update: {
+          active?: boolean
+          duration_days?: number
+          name?: string
+          plan_id?: never
+          price?: number
+          visits_limit?: number
         }
         Relationships: []
       }
@@ -352,6 +500,8 @@ export type Database = {
       }
       workouts: {
         Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
           capacity: number
           category: string
           deposit_amount: number
@@ -364,6 +514,8 @@ export type Database = {
           workout_id: number
         }
         Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           capacity: number
           category: string
           deposit_amount: number
@@ -376,6 +528,8 @@ export type Database = {
           workout_id?: never
         }
         Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           capacity?: number
           category?: string
           deposit_amount?: number
@@ -403,15 +557,26 @@ export type Database = {
     }
     Functions: {
       book_session: {
-        Args: { p_member_id: number; p_workout_id: number }
+        Args: {
+          p_member_id: number
+          p_use_membership?: boolean
+          p_workout_id: number
+        }
         Returns: number
       }
       book_workout: {
         Args: { p_member_id: number; p_workout_id: number }
         Returns: number
       }
+      buy_membership: { Args: { p_plan_id: number }; Returns: number }
       cancel_booking: { Args: { p_booking_id: number }; Returns: undefined }
       current_member_id: { Args: never; Returns: number }
+      current_trainer_id: { Args: never; Returns: number }
+      dismiss_all_notifications: { Args: never; Returns: undefined }
+      dismiss_notification: {
+        Args: { p_notification_id: number }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -419,8 +584,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_trainer: { Args: never; Returns: boolean }
       join_waitlist: {
         Args: { p_member_id: number; p_workout_id: number }
+        Returns: number
+      }
+      promote_from_waitlist: { Args: { p_workout_id: number }; Returns: number }
+      reschedule_booking: {
+        Args: { p_booking_id: number; p_new_workout_id: number }
         Returns: number
       }
       submit_review: {
@@ -430,6 +601,64 @@ export type Database = {
       top_up_wallet: {
         Args: { p_amount: number; p_member_id: number }
         Returns: undefined
+      }
+      trainer_cancel_workout: {
+        Args: { p_reason?: string; p_workout_id: number }
+        Returns: Json
+      }
+      trainer_create_workout: {
+        Args: {
+          p_capacity: number
+          p_category: string
+          p_deposit: number
+          p_description?: string
+          p_duration: number
+          p_price: number
+          p_start: string
+          p_title: string
+        }
+        Returns: number
+      }
+      trainer_reviews: {
+        Args: never
+        Returns: {
+          comment: string
+          created_at: string
+          rating: number
+          review_id: number
+          reviewer: string
+          workout_title: string
+        }[]
+      }
+      trainer_roster: {
+        Args: { p_workout_id: number }
+        Returns: {
+          booked_at: string
+          booking_id: number
+          deposit_paid: number
+          member_name: string
+          status: string
+        }[]
+      }
+      trainer_update_profile: {
+        Args: {
+          p_biography: string
+          p_certifications: string[]
+          p_expertise: string[]
+          p_philosophy: string
+          p_photo_url: string
+          p_professional_title: string
+        }
+        Returns: undefined
+      }
+      trainer_workout_stats: {
+        Args: never
+        Returns: {
+          booked: number
+          deposits: number
+          waitlisted: number
+          workout_id: number
+        }[]
       }
       workout_booked_counts: {
         Args: never
