@@ -17,6 +17,7 @@ export interface Booking {
   id: string; sessionId: string; cancelled: boolean; total: number;
   deposit: number; createdAt: string; code: string;
   visitType?: VisitType; membershipId?: string | null;
+  refundLocked?: boolean;
 }
 export interface Tx { id: string; type: "topup" | "deposit" | "refund" | "membership"; amount: number; date: string; label: string }
 /** A plan the gym sells: `visits` group-class visits within `days` days for `price`. */
@@ -42,7 +43,7 @@ export function statusOf(b: Booking, s: Session, now = Date.now()): BookingStatu
 }
 /** true = more than CANCEL_HOURS before start, so the deposit is refunded. */
 export const canCancel = (b: Booking, s: Session, now = Date.now()) =>
-  !b.cancelled && new Date(s.start).getTime() - now > CANCEL_HOURS * 3600000;
+  !b.cancelled && !b.refundLocked && new Date(s.start).getTime() - now > CANCEL_HOURS * 3600000;
 
 // Restored from the late-cancellation work (commit 90af289), which a later commit removed by accident
 // while src/lib/late-cancel.test.ts still needs it.

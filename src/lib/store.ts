@@ -64,6 +64,7 @@ export async function refreshGym() {
       total: sessions.find((s) => s.id === String(x.workout_id))?.price ?? 0,
       deposit: Number(x.deposit_paid), createdAt: x.booked_at, code: `GYMFLOW:BK-${x.booking_id}:${x.workout_id}`,
       visitType: ((x as { visit_type?: string }).visit_type ?? "single") as VisitType,
+      refundLocked: (x as { refund_locked?: boolean }).refund_locked ?? false,
       membershipId: (x as { membership_id?: number | null }).membership_id != null ? String((x as { membership_id?: number | null }).membership_id) : null,
     }));
   const plans: Plan[] = (pl.error ? [] : pl.data).map((x) => ({ id: String(x.plan_id), name: x.name, visits: x.visits_limit, days: x.duration_days, price: Number(x.price) }));
@@ -130,6 +131,19 @@ export const buyMembership = (planId: string) =>
   rpcError(supabase.rpc("buy_membership", { p_plan_id: Number(planId) }));
 export const cancelBookingDb = (bookingId: string) =>
   rpcError(supabase.rpc("cancel_booking", { p_booking_id: Number(bookingId) }));
+
+/** Reschedules a booking and transfers its deposit. */
+export const rescheduleBookingDb = (
+  bookingId: string,
+  newWorkoutId: string
+) =>
+  rpcError(
+    supabase.rpc("reschedule_booking", {
+      p_booking_id: Number(bookingId),
+      p_new_workout_id: Number(newWorkoutId),
+    })
+  );
+
 export const topUpWallet = (amount: number) =>
   rpcError(supabase.rpc("top_up_wallet", { p_member_id: memberId!, p_amount: amount }));
 

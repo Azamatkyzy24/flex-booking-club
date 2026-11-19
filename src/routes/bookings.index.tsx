@@ -32,6 +32,17 @@ function Bookings() {
       <p className="mb-4 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
         <b className="text-foreground">Cancellation policy:</b> cancel up to {CANCEL_HOURS} hours before the session for a full deposit refund. After that, the deposit is non-refundable. A membership visit returns to your membership whenever you cancel before the class starts.
       </p>
+      <p className="mb-4 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
+
+<b className="text-foreground">Rescheduling policy:</b>{" "}
+
+You can reschedule your booking at any time before the workout
+
+starts, subject to session availability. Your deposit or membership
+
+visit will be transferred to the new session.
+
+</p>
       <div className="mb-4 flex gap-2">
         {(["upcoming", "completed", "cancelled"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}

@@ -478,6 +478,13 @@ export type Database = {
         Returns: number
       }
       cancel_booking: { Args: { p_booking_id: number }; Returns: undefined }
+      reschedule_booking: {
+        Args: {
+          p_booking_id: number
+          p_new_workout_id: number
+        }
+        Returns: number
+      }
       current_member_id: { Args: never; Returns: number }
       has_role: {
         Args: {
