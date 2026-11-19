@@ -64,6 +64,13 @@
       "when": 1794472227604,
       "tag": "0008_trainer_profiles_and_announcements",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795088514687,
+      "tag": "0009_seed_upcoming_workouts",
+      "breakpoints": true
     }
   ]
 }
