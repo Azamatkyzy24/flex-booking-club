@@ -1,10 +1,12 @@
+import { useEffect, useState } from "react";
+import { RescheduleDialog } from "@/components/gym/RescheduleDialog";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, Row, StatusBadge, fmtDate } from "@/components/gym/format";
 import { cancelBookingDb, useGym } from "@/lib/store";
-import { canCancel, canReview, money, reviewOf, statusOf, CANCEL_HOURS } from "@/lib/gym";
+import { canCancel, canCancelAnytime, canReview, money, reviewOf, statusOf, CANCEL_HOURS } from "@/lib/gym";
 import { TrainerLink } from "@/components/gym/TrainerLink";
 import { MyReview, ReviewForm } from "@/components/gym/ReviewForm";
 import { RatingValue } from "@/components/gym/Stars";
@@ -24,6 +26,13 @@ export const Route = createFileRoute("/bookings/$id")({
 function Detail() {
   const { id } = Route.useParams();
   const g = useGym();
+  const [now, setNow] = useState(Date.now());
+  const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
   if (!g) return <Loading />;
   const b = g.bookings.find((x) => x.id === id);
   const s = b && g.sessions.find((x) => x.id === b.sessionId);
@@ -31,24 +40,31 @@ function Detail() {
   const st = statusOf(b, s);
   const review = reviewOf(g, b.id);
   // true = more than CANCEL_HOURS left, so the deposit is refunded
-  const refundable = canCancel(b, s);
+  const refundable = canCancel(b, s, now);
   const viaMembership = b.visitType === "membership";
 
   const cancel = async () => {
+    if (cancelling || !canCancelAnytime(b, s)) return;
+    const refundNow = canCancel(b, s);
     if (
-      !viaMembership && !refundable &&
-      !window.confirm(`Less than ${CANCEL_HOURS}h left: the deposit (${money(b.deposit)}) will NOT be refunded. Cancel anyway?`)
+      !viaMembership && !refundNow &&
+      !window.confirm(`The deposit (${money(b.deposit)}) will NOT be refunded. Cancel anyway?`)
     ) return;
+    setCancelling(true);
     try {
       await cancelBookingDb(b.id);
       toast.success(
         viaMembership
           ? "Booking cancelled. The visit was returned to your membership."
-          : refundable
+          : refundNow
           ? `Booking cancelled. ${money(b.deposit)} refunded to your wallet.`
           : "Booking cancelled. The deposit was not refunded.",
       );
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not cancel."); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not cancel.");
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
@@ -84,14 +100,19 @@ function Detail() {
             </>
           )}
           {s.rating != null && !!s.reviewCount && <Row k="Course rating" v={<RatingValue rating={s.rating} count={s.reviewCount} />} />}
-          {st === "upcoming" && (
+          {st === "upcoming" && canCancelAnytime(b, s, now) && (
             <>
               {!viaMembership && !refundable && (
                 <p className="mt-4 text-sm text-destructive">
-                  Less than {CANCEL_HOURS}h before start: you can still cancel, but the deposit ({money(b.deposit)}) will not be refunded.
+                  {b.refundLocked
+                    ? "Refund eligibility was lost during rescheduling."
+                    : `${CANCEL_HOURS}h or less before start.`}
+                  {" "}You can still cancel, but the deposit
+                  ({money(b.deposit)}) will not be refunded.
                 </p>
               )}
-              <Button variant={refundable || viaMembership ? "destructive" : "outline"} className="mt-4" onClick={cancel}>
+              <RescheduleDialog bookingId={b.id} />
+              <Button variant={refundable || viaMembership ? "destructive" : "outline"} className="mt-4" onClick={cancel} disabled={cancelling}>
                 Cancel booking
               </Button>
             </>
