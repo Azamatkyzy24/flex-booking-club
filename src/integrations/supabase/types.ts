@@ -108,9 +108,7 @@ export type Database = {
           booking_id: number
           deposit_paid: number
           member_id: number
-          membership_id: number | null
           status: string
-          visit_type: string
           workout_id: number
         }
         Insert: {
@@ -118,9 +116,7 @@ export type Database = {
           booking_id?: never
           deposit_paid: number
           member_id: number
-          membership_id?: number | null
           status?: string
-          visit_type?: string
           workout_id: number
         }
         Update: {
@@ -128,9 +124,7 @@ export type Database = {
           booking_id?: never
           deposit_paid?: number
           member_id?: number
-          membership_id?: number | null
           status?: string
-          visit_type?: string
           workout_id?: number
         }
         Relationships: [
@@ -149,66 +143,6 @@ export type Database = {
             referencedColumns: ["workout_id"]
           },
         ]
-      }
-      member_memberships: {
-        Row: {
-          expires_at: string
-          member_id: number
-          membership_id: number
-          plan_id: number
-          plan_name: string
-          price_paid: number
-          starts_at: string
-          visits_limit: number
-        }
-        Insert: {
-          expires_at: string
-          member_id: number
-          membership_id?: never
-          plan_id: number
-          plan_name: string
-          price_paid: number
-          starts_at?: string
-          visits_limit: number
-        }
-        Update: {
-          expires_at?: string
-          member_id?: number
-          membership_id?: never
-          plan_id?: number
-          plan_name?: string
-          price_paid?: number
-          starts_at?: string
-          visits_limit?: number
-        }
-        Relationships: []
-      }
-      membership_plans: {
-        Row: {
-          active: boolean
-          duration_days: number
-          name: string
-          plan_id: number
-          price: number
-          visits_limit: number
-        }
-        Insert: {
-          active?: boolean
-          duration_days: number
-          name: string
-          plan_id?: never
-          price: number
-          visits_limit: number
-        }
-        Update: {
-          active?: boolean
-          duration_days?: number
-          name?: string
-          plan_id?: never
-          price?: number
-          visits_limit?: number
-        }
-        Relationships: []
       }
       members: {
         Row: {
@@ -469,22 +403,14 @@ export type Database = {
     }
     Functions: {
       book_session: {
-        Args: { p_member_id: number; p_use_membership?: boolean; p_workout_id: number }
+        Args: { p_member_id: number; p_workout_id: number }
         Returns: number
       }
-      buy_membership: { Args: { p_plan_id: number }; Returns: number }
       book_workout: {
         Args: { p_member_id: number; p_workout_id: number }
         Returns: number
       }
       cancel_booking: { Args: { p_booking_id: number }; Returns: undefined }
-      reschedule_booking: {
-        Args: {
-          p_booking_id: number
-          p_new_workout_id: number
-        }
-        Returns: number
-      }
       current_member_id: { Args: never; Returns: number }
       has_role: {
         Args: {
