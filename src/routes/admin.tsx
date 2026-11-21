@@ -5,22 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Loading, Page, fmtDate } from "@/components/gym/format";
 import { supabase } from "@/integrations/supabase/client";
 import { refreshGym } from "@/lib/store";
- 
+import { AdminStats } from "@/components/gym/AdminStats";
+
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — GymFlow" }] }),
   component: AdminPage,
 });
- 
+
 // The generated Supabase types don't know about the new admin_* functions yet.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
- 
+
 function workoutLabel(w: Row | null | undefined, id: number) {
   return w?.title ?? w?.name ?? w?.class_name ?? `Workout #${id}`;
 }
- 
+
 function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [bookings, setBookings] = useState<Row[]>([]);
@@ -28,7 +29,7 @@ function AdminPage() {
   const [log, setLog] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(false);
- 
+
   const load = useCallback(async () => {
     const [b, w, l] = await Promise.all([
       db
@@ -46,7 +47,7 @@ function AdminPage() {
     if (w.error) toast.error(w.error.message); else setWaitlist(w.data ?? []);
     if (l.error) toast.error(l.error.message); else setLog(l.data ?? []);
   }, []);
- 
+
   useEffect(() => {
     (async () => {
       const { data, error } = await db.rpc("is_admin");
@@ -55,7 +56,7 @@ function AdminPage() {
       if (ok) await load();
     })();
   }, [load]);
- 
+
   const run = async (call: () => Promise<{ error: { message: string } | null }>, okMsg: string) => {
     setBusy(true);
     try {
@@ -67,7 +68,7 @@ function AdminPage() {
       setBusy(false);
     }
   };
- 
+
   if (allowed === null) return <Loading />;
   if (!allowed) {
     return (
@@ -76,7 +77,7 @@ function AdminPage() {
       </Page>
     );
   }
- 
+
   // Group the waitlist by workout; position = order of created_at
   const groups = new Map<number, Row[]>();
   for (const w of waitlist) {
@@ -84,7 +85,7 @@ function AdminPage() {
     list.push(w);
     groups.set(w.workout_id, list);
   }
- 
+
   return (
     <Page title="Admin">
       <div className="mb-8">
@@ -94,7 +95,9 @@ function AdminPage() {
           <Button onClick={() => setShowForm(true)}>+ Create session</Button>
         )}
       </div>
- 
+
+      <AdminStats />
+
       <h2 className="mb-3 text-xl font-bold">Waitlist</h2>
       {groups.size === 0 && <p className="mb-8 text-muted-foreground">Waitlist is empty.</p>}
       <div className="mb-8 space-y-4">
@@ -145,7 +148,7 @@ function AdminPage() {
           </div>
         ))}
       </div>
- 
+
       <h2 className="mb-3 text-xl font-bold">Upcoming bookings</h2>
       {bookings.length === 0 && <p className="mb-8 text-muted-foreground">No upcoming bookings.</p>}
       <div className="mb-8 divide-y divide-border rounded-2xl border border-border bg-card">
@@ -175,7 +178,7 @@ function AdminPage() {
           </div>
         ))}
       </div>
- 
+
       <h2 className="mb-3 text-xl font-bold">Recent activity</h2>
       <div className="divide-y divide-border rounded-2xl border border-border bg-card">
         {log.map((l) => (
@@ -190,10 +193,10 @@ function AdminPage() {
     </Page>
   );
 }
- 
+
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none";
- 
+
 function Field({ label, id, wide, children }: { label: string; id: string; wide?: boolean; children: React.ReactNode }) {
   return (
     <div className={wide ? "sm:col-span-2" : ""}>
@@ -202,7 +205,7 @@ function Field({ label, id, wide, children }: { label: string; id: string; wide?
     </div>
   );
 }
- 
+
 function NewSessionForm({ onDone }: { onDone: () => void }) {
   const [trainers, setTrainers] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
@@ -212,7 +215,7 @@ function NewSessionForm({ onDone }: { onDone: () => void }) {
   });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
- 
+
   useEffect(() => {
     (async () => {
       const { data, error } = await db.from("trainers").select("trainer_id, full_name").order("full_name");
@@ -221,7 +224,7 @@ function NewSessionForm({ onDone }: { onDone: () => void }) {
       if (data?.length) setF((p) => ({ ...p, trainerId: String(data[0].trainer_id) }));
     })();
   }, []);
- 
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.start) { toast.error("Pick a start date and time."); return; }
@@ -243,7 +246,7 @@ function NewSessionForm({ onDone }: { onDone: () => void }) {
       setBusy(false);
     }
   };
- 
+
   return (
     <form onSubmit={submit} className="grid gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
       <Field label="Title" id="s-title">
@@ -287,4 +290,3 @@ function NewSessionForm({ onDone }: { onDone: () => void }) {
     </form>
   );
 }
- 
