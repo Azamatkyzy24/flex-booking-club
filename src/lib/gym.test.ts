@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookSession, cancelBooking, canReview, hasEnded, makeSeed, reviewOf, visitsLeft } from "./gym";
+import { bookSession, cancelBooking, canReview, hasEnded, makeSeed, reviewOf, visitsLeft, canUpgradeTo, upgradeCost } from "./gym";
 
 const now = Date.now();
 
@@ -102,5 +102,20 @@ describe("membership and single visit", () => {
     const st = withMembership();
     st.memberships![0]!.expiresAt = new Date(now + 3600000).toISOString();
     expect(bookSession(st, "s5", now, true)).toEqual({ ok: false, error: "Your membership expires before this class." });
+  });
+});
+
+describe("membership upgrade rules", () => {
+  const cur = { id: "M1", planName: "Starter", visits: 4, price: 60, startsAt: "2026-11-01T00:00:00Z", expiresAt: "2026-12-01T00:00:00Z" };
+  const standard = { id: "2", name: "Standard", visits: 8, days: 30, price: 104 };
+  const pro = { id: "3", name: "Pro", visits: 12, days: 30, price: 132 };
+  it("charges only the difference", () => {
+    expect(upgradeCost(cur, standard)).toBe(44);
+    expect(upgradeCost({ ...cur, planName: "Standard", visits: 8, price: 104 }, pro)).toBe(28);
+  });
+  it("allows only bigger plans", () => {
+    expect(canUpgradeTo(cur, standard)).toBe(true);
+    expect(canUpgradeTo(cur, { id: "1", name: "Starter", visits: 4, days: 30, price: 60 })).toBe(false);
+    expect(canUpgradeTo({ ...cur, planName: "Pro", visits: 12, price: 132 }, standard)).toBe(false);
   });
 });

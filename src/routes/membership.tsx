@@ -5,8 +5,8 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loading, Page, Row, fmtDate } from "@/components/gym/format";
-import { buyMembership, useGym } from "@/lib/store";
-import { activeMembership, money, visitsLeft, visitsUsed, type Plan } from "@/lib/gym";
+import { buyMembership, upgradeMembership, useGym } from "@/lib/store";
+import { activeMembership, canUpgradeTo, money, upgradeCost, visitsLeft, visitsUsed, type Plan } from "@/lib/gym";
 
 export const Route = createFileRoute("/membership")({
   head: () => ({ meta: [
@@ -35,6 +35,18 @@ function MembershipPage() {
       toast.success(`${p.name} membership activated: ${p.visits} visits.`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Purchase failed.";
+      toast.error(msg.includes("INSUFFICIENT_BALANCE") ? "Insufficient funds. Please top up your wallet." : msg);
+    } finally { setBusy(null); }
+  };
+
+  const upgrade = async (p: Plan) => {
+    if (busy) return;
+    setBusy(p.id);
+    try {
+      await upgradeMembership(p.id);
+      toast.success(`Upgraded to ${p.name}. Your used visits were kept.`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Upgrade failed.";
       toast.error(msg.includes("INSUFFICIENT_BALANCE") ? "Insufficient funds. Please top up your wallet." : msg);
     } finally { setBusy(null); }
   };
@@ -73,7 +85,10 @@ function MembershipPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           {plans.map((p) => {
-            const poor = g.balance < p.price;
+            const isCurrent = !!current && current.planName === p.name;
+            const canUp = !!current && canUpgradeTo(current, p);
+            const price = canUp ? upgradeCost(current, p) : p.price;
+            const poor = g.balance < price;
             return (
               <article key={p.id} className="flex flex-col rounded-2xl border border-border bg-card p-6">
                 <h3 className="text-xl font-bold">{p.name}</h3>
@@ -85,10 +100,18 @@ function MembershipPage() {
                   <li className="flex gap-2"><Check className="h-4 w-4 text-primary" aria-hidden />Nothing to pay at reception</li>
                 </ul>
                 <div className="mt-auto flex flex-col pt-5">
-                  <Button className="w-full" disabled={!!current || poor || busy !== null} onClick={() => buy(p)}>
-                    {current ? "Membership already active" : poor ? "Top up your wallet" : busy === p.id ? "Buying…" : `Buy for ${money(p.price)}`}
-                  </Button>
+                  {canUp ? (
+                    <Button className="w-full" disabled={poor || busy !== null} onClick={() => upgrade(p)}>
+                      {poor ? "Top up your wallet" : busy === p.id ? "Upgrading…" : `Upgrade for ${money(price)}`}
+                    </Button>
+                  ) : (
+                    <Button className="w-full" disabled={!!current || poor || busy !== null} onClick={() => buy(p)}>
+                      {isCurrent ? "Your current plan" : current ? "Smaller than your plan" : poor ? "Top up your wallet" : busy === p.id ? "Buying…" : `Buy for ${money(p.price)}`}
+                    </Button>
+                  )}
+                  {canUp && <p className="mt-2 text-center text-xs text-muted-foreground">{money(p.price)} minus the {money(current.price)} you paid. Used visits are kept.</p>}
                   {!current && poor && <Link to="/wallet" className="mt-2 text-center text-sm font-semibold text-primary">Top up wallet</Link>}
+                  {canUp && poor && <Link to="/wallet" className="mt-2 text-center text-sm font-semibold text-primary">Top up wallet</Link>}
                 </div>
               </article>
             );

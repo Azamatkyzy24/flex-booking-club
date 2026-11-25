@@ -67,6 +67,10 @@ export const visitsLeft = (g: Pick<GymState, "bookings">, m: Membership) => Math
 /** The membership that is valid right now (a member can own only one at a time), or null. */
 export const activeMembership = (g: Pick<GymState, "memberships">, now = Date.now()): Membership | null =>
   g.memberships?.find((m) => new Date(m.startsAt).getTime() <= now && new Date(m.expiresAt).getTime() > now) ?? null;
+/** Upgrade rules, the same as upgrade_membership() in the database: the new plan must give more visits AND cost more. */
+export const canUpgradeTo = (current: Membership, plan: Plan) => plan.visits > current.visits && plan.price > current.price;
+/** What the member pays for an upgrade: the new plan price minus what the current membership cost. */
+export const upgradeCost = (current: Membership, plan: Plan) => Math.round((plan.price - current.price) * 100) / 100;
 export type MembershipCheck = { ok: true; membership: Membership } | { ok: false; reason: string };
 /** Can this session be booked with the member's membership? Mirrors the checks in the database function book_session. */
 export function membershipFor(g: GymState, s: Session, now = Date.now()): MembershipCheck {

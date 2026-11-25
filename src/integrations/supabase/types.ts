@@ -569,6 +569,7 @@ export type Database = {
         Returns: number
       }
       buy_membership: { Args: { p_plan_id: number }; Returns: number }
+      upgrade_membership: { Args: { p_plan_id: number }; Returns: number }
       cancel_booking: { Args: { p_booking_id: number }; Returns: undefined }
       current_member_id: { Args: never; Returns: number }
       current_trainer_id: { Args: never; Returns: number }

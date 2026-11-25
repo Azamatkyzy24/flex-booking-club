@@ -75,7 +75,7 @@ export async function refreshGym() {
     const s = sessions.find((y) => y.id === String(bookings.find((z) => z.id === String(x.booking_id))?.sessionId));
     const type = x.type === "top_up" ? "topup" : (x.type as Tx["type"]);
     const label = type === "topup" ? "Wallet top up (demo)"
-      : type === "membership" ? "Membership purchase"
+      : type === "membership" ? "Membership payment"
       : `${type === "deposit" ? "Deposit" : "Refund"} · ${s?.name ?? "Booking"}`;
     return { id: String(x.transaction_id), type, amount: Number(x.amount), date: x.created_at, label };
   });
@@ -126,6 +126,9 @@ export const bookSession = (workoutId: string, useMembership = false) =>
     // only sent when used, so single visits still work on a database without migration 0016
     ...(useMembership ? { p_use_membership: true } : {}),
   }));
+/** Upgrades the active membership to a bigger plan; the member pays only the difference. Raises INSUFFICIENT_BALANCE. */
+export const upgradeMembership = (planId: string) =>
+  rpcError(supabase.rpc("upgrade_membership", { p_plan_id: Number(planId) }));
 /** Buys a membership from the wallet. Raises INSUFFICIENT_BALANCE / "You already have an active membership." */
 export const buyMembership = (planId: string) =>
   rpcError(supabase.rpc("buy_membership", { p_plan_id: Number(planId) }));
