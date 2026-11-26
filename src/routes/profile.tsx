@@ -3,7 +3,7 @@ import {
   useNavigate,
   Link,
 } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CalendarCheck,
@@ -11,11 +11,13 @@ import {
   Wallet,
   ChevronRight,
   Pencil,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Loading, Page, Row } from "@/components/gym/format";
-import { changePassword, signOut, updateMemberProfile, useGym } from "@/lib/store";
-import { cleanName, validateMemberName, validatePassword, PASSWORD_MIN } from "@/lib/profile";
+import { changePassword, removeAvatar, signOut, updateMemberProfile, uploadAvatar, useGym } from "@/lib/store";
+import { AVATAR_TYPES, cleanName, validateAvatarFile, validateMemberName, validatePassword, PASSWORD_MIN } from "@/lib/profile";
+import { MemberAvatar } from "@/components/gym/MemberAvatar";
 import { activeMembership, money, visitsLeft } from "@/lib/gym";
 
 export const Route = createFileRoute("/profile")({
@@ -91,9 +93,7 @@ function Profile() {
       <div className="max-w-md rounded-2xl border border-border bg-card p-6">
 
         {/* Personal information */}
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
-          {g.name.split(" ").map((n) => n[0]).join("")}
-        </div>
+        <AvatarPicker name={g.name} url={g.avatarUrl} />
 
         {editing ? (
           <EditProfileForm name={g.name} onDone={() => setEditing(false)} />
@@ -244,5 +244,58 @@ function ChangePasswordForm() {
         <Button type="button" size="sm" variant="outline" onClick={close} disabled={saving}>Cancel</Button>
       </div>
     </form>
+  );
+}
+
+/* ---------- Profile photo ---------- */
+function AvatarPicker({ name, url }: { name: string; url?: string | null | undefined }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [saving, setSaving] = useState(false);
+
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // so choosing the same file again still works
+    if (!file) return;
+    const problem = validateAvatarFile(file);
+    if (problem) { toast.error(problem); return; }
+    setSaving(true);
+    try {
+      await uploadAvatar(file);
+      toast.success("Photo updated.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    setSaving(true);
+    try {
+      await removeAvatar();
+      toast.success("Photo removed.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 flex items-center gap-4">
+      <MemberAvatar name={name} url={url} className="h-20 w-20 text-2xl" />
+      <div className="flex flex-col items-start gap-1">
+        <input ref={input} type="file" accept={AVATAR_TYPES.join(",")} className="hidden" onChange={pick} aria-label="Upload profile photo" />
+        <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => input.current?.click()}>
+          <Camera className="mr-1 h-4 w-4" /> {saving ? "Saving…" : url ? "Change photo" : "Add photo"}
+        </Button>
+        {url && (
+          <Button type="button" size="sm" variant="ghost" className="px-2 text-muted-foreground" disabled={saving} onClick={remove}>
+            Remove photo
+          </Button>
+        )}
+        <p className="text-xs text-muted-foreground">JPG, PNG or WEBP, up to 2 MB.</p>
+      </div>
+    </div>
   );
 }

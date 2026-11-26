@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ShieldCheck,
 } from "lucide-react";
+import { MemberAvatar } from "@/components/gym/MemberAvatar";
 
 const baseItems = [
   { to: "/", label: "Home", icon: Home },
@@ -71,9 +72,7 @@ export function Nav() {
               to="/profile"
               className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-semibold"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {g.name.split(" ").map((n) => n[0]).join("")}
-              </span>
+              <MemberAvatar name={g.name} url={g.avatarUrl} className="h-6 w-6 text-[10px]" />
 
               <span className="hidden max-w-36 truncate xl:inline">
                 {g.name}

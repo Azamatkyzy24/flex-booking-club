@@ -38,3 +38,22 @@ export function validateTrainerProfile(p: TrainerProfileInput): string | null {
   if (photo && !/^(https:\/\/|\/)/.test(photo)) return "Photo link must start with https:// or /.";
   return null;
 }
+
+export const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // 2 MB, same limit as the "avatars" bucket
+
+/** Profile photo: JPG, PNG or WEBP, not empty, at most 2 MB. */
+export function validateAvatarFile(file: { type: string; size: number }): string | null {
+  if (!(AVATAR_TYPES as readonly string[]).includes(file.type)) return "Choose a JPG, PNG or WEBP picture.";
+  if (file.size === 0) return "This file is empty.";
+  if (file.size > AVATAR_MAX_BYTES) return "The picture must be 2 MB or smaller.";
+  return null;
+}
+
+/** Where the photo is stored: "<user id>/avatar.<ext>". The folder must be the user id (storage rules check this). */
+export const avatarPath = (userId: string, type: string) =>
+  `${userId}/avatar.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`;
+
+/** "Aidana Azamatkyzy" -> "AA" (shown when there is no photo). */
+export const initialsOf = (name: string) =>
+  cleanName(name).split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]!.toUpperCase()).join("");

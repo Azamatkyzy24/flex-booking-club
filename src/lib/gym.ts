@@ -28,7 +28,7 @@ export interface Membership { id: string; planName: string; visits: number; pric
 export interface Review { bookingId: string; rating: number; comment: string | null; createdAt: string }
 /** A review of a course written by any member (first name only). */
 export interface CourseReview { id: string; rating: number; comment: string | null; createdAt: string; reviewer: string }
-export interface GymState { name: string; email: string; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[]; waitlist?: string[]; reviews?: Review[]; plans?: Plan[]; memberships?: Membership[] }
+export interface GymState { name: string; email: string; avatarUrl?: string | null; balance: number; sessions: Session[]; bookings: Booking[]; txs: Tx[]; waitlist?: string[]; reviews?: Review[]; plans?: Plan[]; memberships?: Membership[] }
 
 /** Cancellation allowed until this many hours before start; deposit refunded in full. */
 export const CANCEL_HOURS = 12;

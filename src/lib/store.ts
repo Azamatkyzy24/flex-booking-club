@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cleanName } from "./profile";
+import { avatarPath, cleanName } from "./profile";
 import type { Booking, GymState, Membership, Plan, Review, Session, Tx, VisitType } from "./gym";
 
 let state: GymState | null = null;
@@ -80,7 +80,7 @@ export async function refreshGym() {
       : `${type === "deposit" ? "Deposit" : "Refund"} · ${s?.name ?? "Booking"}`;
     return { id: String(x.transaction_id), type, amount: Number(x.amount), date: x.created_at, label };
   });
-  state = { name: m.data.full_name, email: m.data.email, balance: Number(m.data.wallet_balance), sessions, bookings, txs, waitlist: q.data.map((x) => String(x.workout_id)), reviews, plans, memberships };
+  state = { name: m.data.full_name, email: m.data.email, avatarUrl: (m.data as { avatar_url?: string | null }).avatar_url ?? null, balance: Number(m.data.wallet_balance), sessions, bookings, txs, waitlist: q.data.map((x) => String(x.workout_id)), reviews, plans, memberships };
   emit();
 }
 
@@ -152,6 +152,26 @@ export const rescheduleBookingDb = (
 export const updateMemberProfile = (fullName: string) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated types don't know this function yet
   rpcError((supabase as any).rpc("update_member_profile", { p_full_name: cleanName(fullName) }));
+
+/** Uploads a profile photo to Supabase Storage (bucket "avatars", folder = user id) and saves its link.
+ *  Check the file with validateAvatarFile() first. Migration 0021 creates the bucket and the database function. */
+export async function uploadAvatar(file: File) {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Please log in.");
+  const path = avatarPath(u.user.id, file.type);
+  const up = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+  if (up.error) throw new Error(up.error.message);
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  // ?v=... so the browser shows the new picture instead of the old cached one
+  await saveAvatarUrl(`${data.publicUrl}?v=${Date.now()}`);
+}
+
+/** Removes the profile photo (the profile shows initials again). */
+export const removeAvatar = () => saveAvatarUrl(null);
+
+const saveAvatarUrl = (url: string | null) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated types don't know this function yet
+  rpcError((supabase as any).rpc("update_member_avatar", { p_avatar_url: url }));
 
 /** Changes the login password of the signed-in account. */
 export async function changePassword(password: string) {
