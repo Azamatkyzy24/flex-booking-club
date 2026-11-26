@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cleanName } from "./profile";
 import type { Booking, GymState, Membership, Plan, Review, Session, Tx, VisitType } from "./gym";
 
 let state: GymState | null = null;
@@ -147,7 +148,18 @@ export const rescheduleBookingDb = (
     })
   );
 
-export const topUpWallet = (amount: number) =>
+/** Saves the member's new name (database function from migration 0020). */
+export const updateMemberProfile = (fullName: string) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated types don't know this function yet
+  rpcError((supabase as any).rpc("update_member_profile", { p_full_name: cleanName(fullName) }));
+
+/** Changes the login password of the signed-in account. */
+export async function changePassword(password: string) {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new Error(error.message);
+}
+
+export const topUpWallet =(amount: number) =>
   rpcError(supabase.rpc("top_up_wallet", { p_member_id: memberId!, p_amount: amount }));
 
 /** Saves a 1-5 rating and optional feedback for a finished booking. The database

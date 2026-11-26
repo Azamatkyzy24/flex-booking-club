@@ -20,6 +20,7 @@ import {
   RESCHEDULE_MIN_NOTICE_HOURS, canReschedule, cancelTrainerWorkout, createTrainerWorkout, rescheduleTrainerWorkout, rescheduleWindow,
   rosterQuery, toLocalInput, trainerReviewsQuery, trainerStatsQuery, updateTrainerProfile, useTrainerId, type WorkoutStat,
 } from "@/lib/trainer";
+import { validateTrainerProfile } from "@/lib/profile";
 
 export const Route = createFileRoute("/trainer")({
   head: () => ({ meta: [{ title: "Trainer dashboard — GymFlow" }] }),
@@ -416,13 +417,16 @@ function ProfileForm({ trainer }: { trainer: Trainer }) {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    const input = {
+      title: f.title, biography: f.biography, philosophy: f.philosophy, photoUrl: f.photoUrl,
+      expertise: f.expertise.split(",").map((x) => x.trim()).filter(Boolean),
+      certifications: f.certifications.split("\n").map((x) => x.trim()).filter(Boolean),
+    };
+    const problem = validateTrainerProfile(input);
+    if (problem) { toast.error(problem); return; }
     setBusy(true);
     try {
-      await updateTrainerProfile({
-        title: f.title, biography: f.biography, philosophy: f.philosophy, photoUrl: f.photoUrl,
-        expertise: f.expertise.split(",").map((x) => x.trim()).filter(Boolean),
-        certifications: f.certifications.split("\n").map((x) => x.trim()).filter(Boolean),
-      });
+      await updateTrainerProfile(input);
       await qc.invalidateQueries({ queryKey: ["trainers"] });
       toast.success("Profile saved.");
     } catch (err) { toast.error((err as Error).message); }
