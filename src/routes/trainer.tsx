@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, CalendarDays, ChevronDown, ChevronUp, Clock, ExternalLink, ListChecks, Plus, Star, Users } from "lucide-react";
+import { Ban, CalendarClock, CalendarDays, ChevronDown, ChevronUp, Clock, ExternalLink, ListChecks, Plus, Star, Users } from "lucide-react";
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -17,8 +17,8 @@ import { trainersQuery, trainerPath, type Trainer } from "@/lib/catalog";
 import { money, spotsLeft, type Session } from "@/lib/gym";
 import { useGym } from "@/lib/store";
 import {
-  cancelTrainerWorkout, createTrainerWorkout, rosterQuery, trainerReviewsQuery, trainerStatsQuery, updateTrainerProfile,
-  useTrainerId, type WorkoutStat,
+  RESCHEDULE_MIN_NOTICE_HOURS, canReschedule, cancelTrainerWorkout, createTrainerWorkout, rescheduleTrainerWorkout, rescheduleWindow,
+  rosterQuery, toLocalInput, trainerReviewsQuery, trainerStatsQuery, updateTrainerProfile, useTrainerId, type WorkoutStat,
 } from "@/lib/trainer";
 
 export const Route = createFileRoute("/trainer")({
@@ -178,7 +178,10 @@ function ClassRow({ s, stat, defaultOpen = false, bare = false }: { s: Session; 
       <Button variant="ghost" size="sm" className="-ml-3" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         {open ? "Hide" : "Show"} attendees {open ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
       </Button>
-      {new Date(s.start).getTime() > Date.now() && <CancelWorkoutButton s={s} stat={stat} />}
+      {new Date(s.start).getTime() > Date.now() && <div className="flex flex-wrap items-center gap-2">
+        <RescheduleWorkoutButton s={s} stat={stat} />
+        <CancelWorkoutButton s={s} stat={stat} />
+      </div>}
     </div>
     {open && <Roster workoutId={s.id} />}
   </>;
@@ -196,6 +199,88 @@ function Roster({ workoutId }: { workoutId: string }) {
       <span className="text-xs text-muted-foreground">booked {fmtDate(r.bookedAt)}</span>
     </li>)}
   </ul>;
+}
+
+function RescheduleWorkoutButton({ s, stat }: { s: Session; stat?: WorkoutStat | undefined }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [when, setWhen] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const booked = stat?.booked ?? s.booked;
+  const waiting = stat?.waitlisted ?? 0;
+  const deposits = stat?.deposits ?? 0;
+  const { min, max, first, last } = rescheduleWindow(s.start);
+  const allowed = canReschedule(s.start);
+
+  const openDialog = (v: boolean) => {
+    if (busy) return;
+    setOpen(v);
+    if (v) { // start the form on "next day, same time"
+      const d = new Date(s.start); d.setDate(d.getDate() + 1);
+      setWhen(toLocalInput(d));
+    } else setReason("");
+  };
+
+  const confirm = async () => {
+    const picked = new Date(when);
+    if (!when || Number.isNaN(picked.getTime())) { toast.error("Pick the new date and time."); return; }
+    if (picked < first || picked > last) { toast.error("Choose a day between 1 and 7 days after the current one."); return; }
+    setBusy(true);
+    try {
+      const r = await rescheduleTrainerWorkout(s.id, picked.toISOString(), reason.trim());
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["trainer-stats"] }),
+        qc.invalidateQueries({ queryKey: ["trainer-roster"] }),
+      ]);
+      toast.success(r.notified
+        ? `Workout rescheduled. ${r.notified} member${r.notified === 1 ? " was" : "s were"} asked to keep their spot or take a refund.`
+        : "Workout rescheduled.");
+      setOpen(false); setReason("");
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  if (!allowed) {
+    return <Button variant="outline" size="sm" disabled
+      title={`Workouts can only be rescheduled at least ${RESCHEDULE_MIN_NOTICE_HOURS} hours before they start. You can still cancel it.`}>
+      <CalendarClock className="h-4 w-4" aria-hidden /> Reschedule
+    </Button>;
+  }
+  return <AlertDialog open={open} onOpenChange={openDialog}>
+    <AlertDialogTrigger asChild>
+      <Button variant="outline" size="sm"><CalendarClock className="h-4 w-4" aria-hidden /> Reschedule</Button>
+    </AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Reschedule “{s.name}”?</AlertDialogTitle>
+        <AlertDialogDescription>
+          Now: {fmtDate(s.start)}. Choose a day between 1 and 7 days later.{" "}
+          {booked
+            ? `${booked} member${booked === 1 ? " is" : "s are"} booked. They keep their spot and see a message asking if they want the new time or their deposit back (${money(deposits)} in total if everyone asks).`
+            : "Nobody has booked yet."}
+          {waiting > 0 && ` ${waiting} ${waiting === 1 ? "person" : "people"} on the waitlist will be removed and told they can join again.`}
+          {" "}You can reschedule a workout only once, at least {RESCHEDULE_MIN_NOTICE_HOURS} hours before it starts.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <div className="space-y-3">
+        <div>
+          <label htmlFor={`resched-when-${s.id}`} className="mb-1 block text-sm font-semibold">New date and time</label>
+          <input id={`resched-when-${s.id}`} type="datetime-local" className={inputCls} value={when} min={min} max={max}
+            onChange={(e) => setWhen(e.target.value)} required />
+        </div>
+        <div>
+          <label htmlFor={`resched-reason-${s.id}`} className="mb-1 block text-sm font-semibold">Reason (optional, shown to members)</label>
+          <textarea id={`resched-reason-${s.id}`} rows={2} maxLength={200} className={inputCls} value={reason}
+            onChange={(e) => setReason(e.target.value)} placeholder="For example: the studio is closed that day" />
+        </div>
+      </div>
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={busy}>Keep current time</AlertDialogCancel>
+        <Button disabled={busy} onClick={confirm}>{busy ? "Rescheduling…" : "Reschedule workout"}</Button>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>;
 }
 
 function CancelWorkoutButton({ s, stat }: { s: Session; stat?: WorkoutStat | undefined }) {

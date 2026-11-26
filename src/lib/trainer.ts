@@ -101,6 +101,41 @@ export async function cancelTrainerWorkout(workoutId: string, reason: string): P
   return { refunded: Number(r.refunded ?? 0), total: Number(r.total ?? 0), waitlist: Number(r.waitlist ?? 0) };
 }
 
+/** The rules for rescheduling (the database enforces them too; these only drive the form). */
+export const RESCHEDULE_MIN_NOTICE_HOURS = 48;
+export const RESCHEDULE_MAX_DAYS = 7;
+
+export interface RescheduleResult { notified: number; waitlist: number }
+
+const pad = (n: number) => String(n).padStart(2, "0");
+/** Value for an <input type="datetime-local"> in the browser's own time zone. */
+export const toLocalInput = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+/** The days a class may move to: from the next day up to 7 days after the current day (whole days). */
+export function rescheduleWindow(startIso: string) {
+  const start = new Date(startIso);
+  const first = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 0, 0);
+  const last = new Date(start.getFullYear(), start.getMonth(), start.getDate() + RESCHEDULE_MAX_DAYS, 23, 59);
+  return { min: toLocalInput(first), max: toLocalInput(last), first, last };
+}
+
+/** True while there is still enough notice (48 hours) to reschedule. */
+export const canReschedule = (startIso: string) =>
+  new Date(startIso).getTime() - Date.now() >= RESCHEDULE_MIN_NOTICE_HOURS * 3600_000;
+
+/** Moves one of the trainer's own workouts. Everyone booked keeps their spot for now and gets a message
+ *  asking whether they want the new time or their deposit back; waitlisted people are removed and told. */
+export async function rescheduleTrainerWorkout(workoutId: string, newStartIso: string, reason: string): Promise<RescheduleResult> {
+  const { data, error } = await db.rpc("trainer_reschedule_workout", {
+    p_workout_id: Number(workoutId), p_new_start: newStartIso, p_reason: reason || null,
+  });
+  if (error) throw new Error(error.message);
+  await refreshGym(); // the class shows its new time everywhere
+  const r = (data ?? {}) as { notified?: number; waitlist?: number };
+  return { notified: Number(r.notified ?? 0), waitlist: Number(r.waitlist ?? 0) };
+}
+
 export async function updateTrainerProfile(p: ProfileUpdate) {
   const { error } = await db.rpc("trainer_update_profile", {
     p_professional_title: p.title, p_biography: p.biography, p_philosophy: p.philosophy,
